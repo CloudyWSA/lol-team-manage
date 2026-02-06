@@ -33,6 +33,7 @@ function LoginPageContent() {
   // Registration states
   const [regName, setRegName] = useState("")
   const [regEmail, setRegEmail] = useState("")
+  const [regPassword, setRegPassword] = useState("")
   const [regRole, setRegRole] = useState<"coach" | "player" | "analyst">("player")
   const [regTeam, setRegTeam] = useState("")
   const [regPosition, setRegPosition] = useState("")
@@ -70,7 +71,7 @@ function LoginPageContent() {
     setIsLoading(true)
     setError("")
 
-    if (!regName || !regEmail || (!regTeam && !inviteCode)) {
+    if (!regName || !regEmail || !regPassword || (!regTeam && !inviteCode)) {
       setError("Por favor, preencha todos os campos obrigatórios.")
       setIsLoading(false)
       return
@@ -79,6 +80,7 @@ function LoginPageContent() {
     const success = await register({
       name: regName,
       email: regEmail,
+      password: regPassword,
       role: regRole,
       teamName: inviteCode ? undefined : regTeam,
       inviteCode: inviteCode || undefined,
@@ -213,7 +215,7 @@ function LoginPageContent() {
                           disabled={isLoading}
                         />
                       </div>
-                      <div className="space-y-2">
+                    <div className="space-y-2">
                         <Label htmlFor="regEmail">Email</Label>
                         <Input
                           id="regEmail"
@@ -225,6 +227,19 @@ function LoginPageContent() {
                           disabled={isLoading}
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="regPassword">Senha</Label>
+                      <Input
+                        id="regPassword"
+                        type="password"
+                        placeholder="Escolha uma senha segura"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="bg-muted/50"
+                        disabled={isLoading}
+                      />
                     </div>
 
                     <div className="space-y-2">

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Doc, Id } from "@/convex/_generated/dataModel"
 
@@ -29,7 +29,7 @@ interface AuthContextType {
   isLoading: boolean
   isStaff: boolean
   login: (email: string, password: string) => Promise<boolean>
-  register: (data: { name: string, email: string, role: UserRole, teamName?: string, inviteCode?: string, position?: string }) => Promise<boolean>
+  register: (data: { name: string, email: string, password?: string, role: UserRole, teamName?: string, inviteCode?: string, position?: string }) => Promise<boolean>
   logout: () => void
 }
 
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const convexUser = useQuery(api.users.getMe, storedEmail ? { email: storedEmail } : "skip")
-  const registerMutation = useMutation(api.users.register)
+
 
   const user = useMemo(() => {
     if (!convexUser) return null
@@ -70,21 +70,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
+  const loginAction = useAction(api.users.login);
+  const registerAction = useAction(api.users.register);
+
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsInitializing(true)
-    const normalizedEmail = email.toLowerCase()
-    localStorage.setItem("invokers-user-email", normalizedEmail)
-    setStoredEmail(normalizedEmail)
-    setIsInitializing(false)
-    return true
+    try {
+        const user = await loginAction({ email, password });
+        if (user) {
+            localStorage.setItem("invokers-user-email", email.toLowerCase())
+            setStoredEmail(email.toLowerCase())
+            setIsInitializing(false)
+            return true
+        }
+        setIsInitializing(false)
+        return false
+    } catch (e) {
+        console.error("Login failed", e);
+        setIsInitializing(false)
+        return false
+    }
   }
 
-  const register = async (data: { name: string, email: string, role: UserRole, teamName?: string, inviteCode?: string, position?: string }): Promise<boolean> => {
+  const register = async (data: { name: string, email: string, password?: string, role: UserRole, teamName?: string, inviteCode?: string, position?: string }): Promise<boolean> => {
     setIsInitializing(true)
     try {
-      await registerMutation({
+      if (!data.password) throw new Error("Password required");
+      
+      await registerAction({
         ...data,
         email: data.email.toLowerCase(),
+        password: data.password,
       })
       localStorage.setItem("invokers-user-email", data.email.toLowerCase())
       setStoredEmail(data.email.toLowerCase())

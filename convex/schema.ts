@@ -7,6 +7,7 @@ export default defineSchema({
     name: v.string(),
     email: v.string(),
     role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst")),
+    password: v.optional(v.string()),
     position: v.optional(v.string()), // Top, Jungle, Mid, ADC, Support
     teamId: v.id("teams"),
     avatar: v.optional(v.string()),
