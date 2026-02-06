@@ -20,6 +20,20 @@ export function AppShell({ children, title, subtitle, requireStaff = false }: Ap
   const { user, isLoading, isStaff } = useAuth()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false)
 
+  // Initialize from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem("sidebar-collapsed")
+    if (savedState) {
+      setIsSidebarCollapsed(JSON.parse(savedState))
+    }
+  }, [])
+
+  // Persist to localStorage
+  const handleSidebarCollapse = (collapsed: boolean) => {
+    setIsSidebarCollapsed(collapsed)
+    localStorage.setItem("sidebar-collapsed", JSON.stringify(collapsed))
+  }
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login")
@@ -62,7 +76,7 @@ export function AppShell({ children, title, subtitle, requireStaff = false }: Ap
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar collapsed={isSidebarCollapsed} setCollapsed={setIsSidebarCollapsed} />
+      <Sidebar collapsed={isSidebarCollapsed} setCollapsed={handleSidebarCollapse} />
       <div className={isSidebarCollapsed ? "pl-16 transition-all duration-300" : "pl-64 transition-all duration-300"}>
         <main className="p-6">{children}</main>
       </div>

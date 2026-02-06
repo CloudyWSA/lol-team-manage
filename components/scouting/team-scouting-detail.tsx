@@ -34,6 +34,8 @@ import {
   Play,
   Loader2,
   Youtube,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -137,7 +139,7 @@ interface Match {
 }
 
 import { api } from "@/convex/_generated/api"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import { Id } from "@/convex/_generated/dataModel"
 import { toast } from "sonner"
 
@@ -373,8 +375,13 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
   const mediaItems = useQuery(api.media.getMediaByTeam, { teamId: teamId as Id<"scoutingTeams"> })
 
   // Mutations
+  // Mutations & Actions
   const addScoutedPlayer = useMutation(api.scouting.addScoutedPlayer)
   const deleteMedia = useMutation(api.media.deleteMedia)
+  const registerMatch = useAction(api.riotApi.registerTeamMatch)
+  
+  // Queries
+  const matches = useQuery(api.scouting.getScoutingMatches, { teamId: teamId as Id<"scoutingTeams"> }) || []
 
   // Dialog visibility states
   const [isAddMatchOpen, setIsAddMatchOpen] = useState(false)
@@ -383,6 +390,7 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
   const [isAddNoteOpen, setIsAddNoteOpen] = useState(false)
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
   const [isAddPatternOpen, setIsAddPatternOpen] = useState(false)
+  const [isRegisteringMatch, setIsRegisteringMatch] = useState(false)
   
   const [riotVersion, setRiotVersion] = useState("14.3.1")
   const [patterns, setPatterns] = useState<Pattern[]>([])
@@ -446,11 +454,25 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
     setFormData({...formData, noteContent: ""})
   }
 
-  const matches: any[] = []
-
-  const handleAddMatch = () => {
-    setIsAddMatchOpen(false)
-    toast.info("Match analysis functionality coming soon")
+  const handleAddMatch = async () => {
+    if (!formData.matchId || !team) return
+    setIsRegisteringMatch(true)
+    try {
+       await registerMatch({
+          teamId: team._id,
+          matchId: formData.matchId,
+          tournament: formData.matchTournament,
+          notes: formData.matchNotes
+       })
+       toast.success("Partida registrada e processada com sucesso!")
+       setIsAddMatchOpen(false)
+       setFormData({ ...formData, matchId: "", matchTournament: "", matchNotes: "" })
+    } catch (error) {
+       console.error(error)
+       toast.error("Erro ao registrar partida. Verifique o ID.")
+    } finally {
+       setIsRegisteringMatch(false)
+    }
   }
 
   // New player form state
@@ -793,8 +815,8 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
                         onChange={(e) => setFormData({...formData, matchNotes: e.target.value})}
                       />
                     </div>
-                    <Button className="w-full" onClick={handleAddMatch} disabled={!formData.matchId || !formData.matchTournament}>
-                      Registrar
+                    <Button className="w-full" onClick={handleAddMatch} disabled={!formData.matchId || isRegisteringMatch}>
+                      {isRegisteringMatch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Registrar"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -1112,153 +1134,29 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
       )}
 
       {/* Matches Tab */}
+      {/* Matches Tab */}
       {activeTab === "matches" && (
-        <div className="space-y-4">
-          <Card className="stat-card border-border/50 bg-black/40 backdrop-blur-xl">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-4">
-              <div>
-                <CardTitle className="text-xl font-black uppercase tracking-tighter">Histórico de Partidas 2.0</CardTitle>
-                <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-40">Series Oficiais e Breakdown de Games</CardDescription>
-              </div>
-              <Button onClick={() => setIsAddMatchOpen(true)} className="h-9 text-[10px] font-bold uppercase tracking-widest px-6 shadow-xl shadow-primary/10">
-                <Plus className="mr-2 h-4 w-4" /> Registrar Série
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Accordion type="single" collapsible className="w-full">
-                {matches.map((match) => (
-                  <AccordionItem key={match.id} value={match.id} className="border-b border-white/5 px-6">
-                    <AccordionTrigger className="hover:no-underline py-6">
-                      <div className="flex items-center justify-between w-full pr-6 text-left">
-                        <div className="flex items-center gap-6">
-                          <div className={cn(
-                            "flex h-14 w-14 items-center justify-center rounded-2xl font-black text-xl shadow-inner",
-                            match.result === "W" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                          )}>
-                            {match.result}
-                          </div>
-                          <div>
-                            <p className="font-black text-lg uppercase tracking-tight">vs. {match.opponent}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="bg-white/5 text-[10px] font-mono border-white/10 uppercase">{match.score}</Badge>
-                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-40">{match.tournament}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="hidden md:block text-right">
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{match.date}</p>
-                          <p className="text-[9px] font-mono opacity-20">{match.id}</p>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-8">
-                      {match.games.length > 0 ? (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
-                          {match.games.map((game, idx) => (
-                            <div key={game.id} className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
-                              <div className="bg-white/[0.03] px-4 py-2 flex items-center justify-between border-b border-white/5">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">GAME {idx + 1} • {game.duration}</span>
-                                <Badge variant={game.win ? "default" : "destructive"} className="h-5 text-[9px] font-black px-3 rounded-full">
-                                  {game.win ? "VITÓRIA" : "DERROTA"}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-1 xl:grid-cols-2">
-                                {/* Blue Side */}
-                                <div className="p-4 border-r border-white/5 bg-blue-500/[0.02]">
-                                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400 mb-4 opacity-70">Blue Side • {idx === 0 ? team.name : match.opponent}</p>
-                                  <div className="space-y-2">
-                                    {game.blueTeam.map((p, pIdx) => (
-                                      <div key={pIdx} className="flex items-center justify-between group/p hover:bg-white/[0.03] p-1.5 rounded-xl transition-colors">
-                                        <div className="flex items-center gap-3">
-                                          <div className="relative">
-                                            <Avatar className="h-9 w-9 border border-white/10 shadow-lg">
-                                              <AvatarImage src={getChampionIcon(p.champion, riotVersion)} />
-                                            </Avatar>
-                                            <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/20">
-                                              {/* Placeholder for role icon */}
-                                              <span className="text-[7px] font-black uppercase px-1 text-white/60">{p.role[0]}</span>
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <p className="text-[10px] font-black line-clamp-1">{p.champion}</p>
-                                            <p className="text-[9px] font-mono opacity-40">{p.kda}</p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex gap-0.5">
-                                            {p.items.map((item, iIdx) => (
-                                              <div key={iIdx} className="w-5 h-5 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center">
-                                                {item ? (
-                                                  <img src={getItemIcon(item, riotVersion)} alt="item" className="w-full h-full scale-110" />
-                                                ) : <div className="w-full h-full bg-white/[0.02]" />}
-                                              </div>
-                                            ))}
-                                          </div>
-                                          <div className="text-right w-12 shrink-0">
-                                            <p className="text-[9px] font-black">{p.gold}</p>
-                                            <p className="text-[8px] font-mono opacity-40">{p.cs} CS</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                {/* Red Side */}
-                                <div className="p-4 bg-red-500/[0.02]">
-                                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-red-400 mb-4 opacity-70">Red Side • {idx === 0 ? match.opponent : team.name}</p>
-                                  <div className="space-y-2">
-                                    {game.redTeam.map((p, pIdx) => (
-                                      <div key={pIdx} className="flex items-center justify-between group/p hover:bg-white/[0.03] p-1.5 rounded-xl transition-colors">
-                                        <div className="flex items-center gap-3">
-                                          <div className="relative">
-                                            <Avatar className="h-9 w-9 border border-white/10 shadow-lg">
-                                              <AvatarImage src={getChampionIcon(p.champion, riotVersion)} />
-                                            </Avatar>
-                                            <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/20">
-                                              <span className="text-[7px] font-black uppercase px-1 text-white/60">{p.role[0]}</span>
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <p className="text-[10px] font-black line-clamp-1">{p.champion}</p>
-                                            <p className="text-[9px] font-mono opacity-40">{p.kda}</p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex gap-0.5">
-                                            {p.items.map((item, iIdx) => (
-                                              <div key={iIdx} className="w-5 h-5 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center">
-                                                {item ? (
-                                                  <img src={getItemIcon(item, riotVersion)} alt="item" className="w-full h-full scale-110" />
-                                                ) : <div className="w-full h-full bg-white/[0.02]" />}
-                                              </div>
-                                            ))}
-                                          </div>
-                                          <div className="text-right w-12 shrink-0">
-                                            <p className="text-[9px] font-black">{p.gold}</p>
-                                            <p className="text-[8px] font-mono opacity-40">{p.cs} CS</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-12 text-center bg-white/[0.01] rounded-2xl border border-dashed border-white/5">
-                          <History className="h-8 w-8 text-white/10 mx-auto mb-3" />
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Nenhum detalhe de game disponível para esta série</p>
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          </Card>
-        </div>
+         <div className="space-y-6">
+            <div className="flex justify-between items-center">
+               <h3 className="text-xl font-black uppercase tracking-tight">Histórico de Partidas</h3>
+               <Button onClick={() => setIsAddMatchOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registrar Partida
+               </Button>
+            </div>
+            
+            <div className="space-y-4">
+               {matches?.map((match: any) => (
+                  <TeamMatchCard key={match._id} match={match} riotVersion={riotVersion} />
+               ))}
+               {matches?.length === 0 && (
+                  <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-[2rem]">
+                     <History className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+                     <p className="text-muted-foreground font-medium">Nenhuma partida registrada.</p>
+                  </div>
+               )}
+            </div>
+         </div>
       )}
 
       {/* Notes Tab */}
@@ -1286,3 +1184,352 @@ export function TeamScoutingDetail({ teamId }: TeamScoutingDetailProps) {
     </div>
   )
 }
+
+
+function TeamMatchCard({ match, riotVersion }: { match: any, riotVersion: string }) {
+   const [expanded, setExpanded] = useState(false)
+   const [selectedPlayer, setSelectedPlayer] = useState<any>(null)
+   
+   const date = new Date(match.date).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit' })
+   const duration = `${Math.floor(match.duration / 60)}:${(match.duration % 60).toString().padStart(2, '0')}`
+
+   // Helper to find enemy counterpart
+   const getOpponent = (role: string) => match.enemyTeam.find((p: any) => p.role === role)
+
+   const ROLES = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"]
+   // Using reliable raw.communitydragon.org assets for consistency
+   const ROLE_ICONS: Record<string, string> = {
+      "TOP": "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-top.svg",
+      "JUNGLE": "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-jungle.svg",
+      "MIDDLE": "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-middle.svg",
+      "BOTTOM": "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-bottom.svg",
+      "UTILITY": "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-utility.svg"
+   }
+
+   // Robust aggregations with fallback to 0
+   const totalKills = match.myTeam?.reduce((a: any, b: any) => a + (Number(b.kills) || 0), 0) || 0;
+   const totalDeaths = match.myTeam?.reduce((a: any, b: any) => a + (Number(b.deaths) || 0), 0) || 0;
+
+   // Normalized Objectives
+   const dragons = match.objectives?.dragons || 0;
+   const barons = match.objectives?.barons || 0;
+
+   return (
+      <>
+         <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden hover:bg-white/[0.04] transition-all">
+            {/* Header / Summary */}
+            <div 
+               className="flex items-center p-4 gap-6 cursor-pointer"
+               onClick={() => setExpanded(!expanded)}
+            >
+               <div className={cn("w-2 h-16 rounded-full shrink-0", match.win ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" : "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]")} />
+               
+               <div className="w-24 text-center">
+                  <p className={cn("text-lg font-black uppercase tracking-tighter", match.win ? "text-emerald-400" : "text-red-400")}>
+                     {match.win ? "Vitória" : "Derrota"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-bold">{date}</p>
+               </div>
+
+               {/* Quick Comp Preview (Collapsed) */}
+               {!expanded && (
+                  <div className="flex-1 grid grid-cols-2 gap-8 animate-in fade-in">
+                     <div className="flex justify-center gap-1">
+                        {match.myTeam.map((p: any) => (
+                           <Avatar key={p.puuid} className="w-8 h-8 rounded-lg border border-white/10">
+                              <AvatarImage src={getChampionIcon(p.championName, riotVersion)} />
+                           </Avatar>
+                        ))}
+                     </div>
+                     <div className="flex justify-center gap-1">
+                        {match.enemyTeam.map((p: any) => (
+                           <Avatar key={p.puuid} className="w-8 h-8 rounded-lg border border-white/10 grayscale opacity-60">
+                              <AvatarImage src={getChampionIcon(p.championName, riotVersion)} />
+                           </Avatar>
+                        ))}
+                     </div>
+                  </div>
+               )}
+
+               {/* Stats Summary (Expanded) */}
+               {expanded && (
+                   <div className="flex-1 grid grid-cols-3 gap-4 text-center animate-in fade-in">
+                        <div>
+                           <p className="text-[10px] uppercase text-muted-foreground font-bold">Gold Total</p>
+                           <p className={cn("text-sm font-black", match.snapshots?.["20m"]?.goldDiff > 0 ? "text-emerald-400" : "text-red-400")}>
+                              {match.snapshots?.["20m"]?.goldDiff > 0 ? "+" : ""}{(match.snapshots?.["20m"]?.goldDiff / 1000).toFixed(1)}k @ 20m
+                           </p>
+                        </div>
+                        <div>
+                           <p className="text-[10px] uppercase text-muted-foreground font-bold">Kills</p>
+                           <p className="text-sm font-black text-white">
+                              {totalKills} - {totalDeaths}
+                           </p>
+                        </div>
+                        <div>
+                           <p className="text-[10px] uppercase text-muted-foreground font-bold">Objetivos</p>
+                           <p className="text-sm font-black text-amber-400">
+                             {dragons} Drags / {barons} Barons
+                           </p>
+                        </div>
+                   </div>
+               )}
+
+               <div className="text-right space-y-1 min-w-[120px]">
+                  <p className="text-xs font-bold text-white uppercase tracking-wider">{match.tournament || "Scrim"}</p>
+                  <div className="flex items-center justify-end gap-2 text-[10px] text-muted-foreground/60 font-mono">
+                     <Clock className="w-3 h-3" /> {duration}
+                  </div>
+               </div>
+
+               <Button variant="ghost" size="icon" className="rounded-full">
+                  {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+               </Button>
+            </div>
+
+            {expanded && (
+               <div className="border-t border-white/5 bg-black/20 p-6 space-y-8 animate-in slide-in-from-top-2">
+                   {/* Context & Notes */}
+                   {match.notes && (
+                     <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl flex gap-3 text-amber-200/80 text-sm">
+                        <FileText className="w-4 h-4 mt-0.5 shrink-0" />
+                        <p>{match.notes}</p>
+                     </div>
+                  )}
+
+                  {/* Lane Matchups & Stats Table */}
+                  <div className="space-y-2">
+                     <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mb-2 px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-widest text-center">
+                        <div className="text-left">Nossa Equipe</div>
+                        <div>Lane Matchup</div>
+                        <div className="text-right">Inimigo</div>
+                     </div>
+                     
+                     {ROLES.map(role => {
+                        const myPlayer = match.myTeam.find((p: any) => p.role === role) || match.myTeam.find((p: any) => p.role === "INVALID")
+                        const enemyPlayer = getOpponent(role)
+                        
+                        // Calculated Diffs
+                        const goldDiff = myPlayer && enemyPlayer ? myPlayer.gold - enemyPlayer.gold : 0
+                        const xpDiff = myPlayer && enemyPlayer ? (myPlayer.xp || 0) - (enemyPlayer.xp || 0) : 0
+                        const csDiff = myPlayer && enemyPlayer ? myPlayer.cs - enemyPlayer.cs : 0
+
+                        return (
+                           <div key={role} className="grid grid-cols-[1fr_auto_1fr] gap-4 bg-white/5 rounded-xl border border-white/5 p-2 items-center hover:bg-white/10 transition-colors group">
+                                 
+                                 {/* My Player */}
+                                 <div 
+                                    className="flex items-center gap-3 cursor-pointer"
+                                    onClick={() => setSelectedPlayer(myPlayer)}
+                                 >
+                                    <div className="relative">
+                                       <Avatar className="w-10 h-10 rounded-lg border border-white/10">
+                                          <AvatarImage src={getChampionIcon(myPlayer?.championName, riotVersion)} />
+                                       </Avatar>
+                                       <div className="absolute -bottom-1 -right-1 bg-black/80 text-[9px] px-1 rounded border border-white/10 font-mono">
+                                          {myPlayer?.level || 1}
+                                       </div>
+                                    </div>
+                                    <div className="min-w-0">
+                                       <p className="text-xs font-bold truncate text-white">{myPlayer?.riotIdGameName}</p>
+                                       <p className="text-[10px] text-muted-foreground font-mono">{myPlayer?.kda} KDA</p>
+                                    </div>
+                                    <div className="flex gap-0.5 ml-auto">
+                                       {myPlayer?.items.slice(0, 3).map((item: number, idx: number) => (
+                                          item ? <img key={idx} src={getItemIcon(item, riotVersion)} className="w-5 h-5 rounded border border-white/10" /> : <div key={idx} className="w-5 h-5" />
+                                       ))}
+                                    </div>
+                                 </div>
+
+                                 {/* Comparison Center */}
+                                 <div className="w-32 flex flex-col items-center justify-center gap-1">
+                                       <img src={ROLE_ICONS[role]} className="w-5 h-5 opacity-20 filter invert" />
+                                       
+                                       <div className="flex flex-col gap-0.5 w-full">
+                                          {/* Gold Diff */}
+                                          <div className="flex justify-between w-full text-[9px] font-mono bg-black/40 rounded px-1.5 py-0.5">
+                                             <span className={cn(goldDiff > 0 ? "text-emerald-400" : "text-red-400")}>
+                                                {goldDiff > 0 ? "+" : ""}{(goldDiff/1000).toFixed(1)}k
+                                             </span>
+                                             <span className="text-muted-foreground">GD</span>
+                                          </div>
+                                          {/* CS Diff */}
+                                          <div className="flex justify-between w-full text-[9px] font-mono bg-black/40 rounded px-1.5 py-0.5">
+                                             <span className={cn(csDiff > 0 ? "text-emerald-400" : "text-red-400")}>
+                                                {csDiff > 0 ? "+" : ""}{csDiff}
+                                             </span>
+                                             <span className="text-muted-foreground">CS</span>
+                                          </div>
+                                          {/* XP Diff */}
+                                          <div className="flex justify-between w-full text-[9px] font-mono bg-black/40 rounded px-1.5 py-0.5">
+                                             <span className={cn(xpDiff > 0 ? "text-emerald-400" : "text-red-400")}>
+                                                {xpDiff > 0 ? "+" : ""}{xpDiff}
+                                             </span>
+                                             <span className="text-muted-foreground">XP</span>
+                                          </div>
+                                       </div>
+                                 </div>
+
+                                 {/* Enemy Player */}
+                                 <div 
+                                    className="flex items-center gap-3 justify-end cursor-pointer text-right"
+                                    onClick={() => setSelectedPlayer(enemyPlayer)}
+                                 >
+                                    <div className="flex gap-0.5 mr-auto">
+                                       {enemyPlayer?.items.slice(0, 3).map((item: number, idx: number) => (
+                                          item ? <img key={idx} src={getItemIcon(item, riotVersion)} className="w-5 h-5 rounded border border-white/10" /> : <div key={idx} className="w-5 h-5" />
+                                       ))}
+                                    </div>
+                                    <div className="min-w-0">
+                                       <p className="text-xs font-bold truncate text-white">{enemyPlayer?.riotIdGameName}</p>
+                                       <p className="text-[10px] text-muted-foreground font-mono">{enemyPlayer?.kda} KDA</p>
+                                    </div>
+                                    <div className="relative">
+                                       <Avatar className="w-10 h-10 rounded-lg border border-white/10 opacity-70 grayscale">
+                                          <AvatarImage src={getChampionIcon(enemyPlayer?.championName, riotVersion)} />
+                                       </Avatar>
+                                       <div className="absolute -bottom-1 -left-1 bg-black/80 text-[9px] px-1 rounded border border-white/10 font-mono">
+                                          {enemyPlayer?.level || 1}
+                                       </div>
+                                    </div>
+                                 </div>
+                           </div>
+                        )
+                     })}
+                  </div>
+
+                  {/* Snapshots / Timeline */}
+                   <div className="grid grid-cols-3 gap-4">
+                     {Object.entries(match.snapshots || {}).map(([time, data]: [string, any]) => (
+                        <div key={time} className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-4">
+                           <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">{time} Snapshot</p>
+                              <Badge variant={data.goldDiff > 0 ? "default" : "destructive"} className="text-[10px]">
+                                 {data.goldDiff > 0 ? "+" : ""}{(data.goldDiff / 1000).toFixed(1)}k Gold
+                              </Badge>
+                           </div>
+                           
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-xs">
+                                 <span className="text-muted-foreground">Kills</span>
+                                 <span className="font-bold flex gap-1">
+                                    <span className="text-emerald-400">{data.kills}</span> / <span className="text-red-400">{data.deaths}</span>
+                                 </span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                 <span className="text-muted-foreground">Dragões</span>
+                                 <span className="font-bold text-amber-400">{data.objectives.dragons} vs {data.enemyObjectives.dragons}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                 <span className="text-muted-foreground">Torres</span>
+                                 <span className="font-bold text-blue-400">{data.objectives.towers} vs {data.enemyObjectives.towers}</span>
+                              </div>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+
+               </div>
+            )}
+         </div>
+
+         {/* Detailed Player Dialog */}
+         <Dialog open={!!selectedPlayer} onOpenChange={(o) => !o && setSelectedPlayer(null)}>
+            <DialogContent className="max-w-2xl bg-[#0a0a0a] border-white/10 text-white">
+               {selectedPlayer && (
+                  <>
+                     <DialogHeader>
+                        <DialogTitle className="flex items-center gap-4">
+                            <Avatar className="w-16 h-16 rounded-xl border-2 border-white/10">
+                              <AvatarImage src={getChampionIcon(selectedPlayer.championName, riotVersion)} />
+                           </Avatar>
+                           <div>
+                              <div className="flex items-center gap-2">
+                                 <h2 className="text-2xl font-black uppercase tracking-tighter">{selectedPlayer.championName}</h2>
+                                 <Badge variant="outline" className="text-[10px] ml-2">{selectedPlayer.role}</Badge>
+                              </div>
+                              <p className="text-muted-foreground">{selectedPlayer.riotIdGameName} #{selectedPlayer.riotIdTagline}</p>
+                           </div>
+                        </DialogTitle>
+                     </DialogHeader>
+                     
+                     <div className="grid grid-cols-2 gap-8 py-6">
+                         {/* Combat Stats */}
+                         <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Combate & Build</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                  <p className="text-[10px] uppercase text-muted-foreground">KDA</p>
+                                  <p className="text-xl font-black">{selectedPlayer.kda}</p>
+                                  <p className="text-[10px] text-muted-foreground">{selectedPlayer.kills} / {selectedPlayer.deaths} / {selectedPlayer.assists}</p>
+                               </div>
+                               <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                  <p className="text-[10px] uppercase text-muted-foreground">Dano Total</p>
+                                  <p className="text-xl font-black text-red-300">{(selectedPlayer.damage / 1000).toFixed(1)}k</p>
+                                  <p className="text-[10px] text-muted-foreground">{(selectedPlayer.damageShare || 0).toFixed(1)}% do time</p>
+                               </div>
+                               <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                  <p className="text-[10px] uppercase text-muted-foreground">DPM</p>
+                                  <p className="text-xl font-black text-orange-300">{(selectedPlayer.dpm || 0).toFixed(0)}</p>
+                               </div>
+                               <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                  <p className="text-[10px] uppercase text-muted-foreground">Gold / Dano</p>
+                                  <p className="text-xl font-black text-yellow-100">{(selectedPlayer.goldPerDamage || 0).toFixed(2)}</p>
+                               </div>
+                            </div>
+                            
+                            <div>
+                               <p className="text-[10px] uppercase text-muted-foreground mb-2">Items</p>
+                               <div className="flex gap-2 flex-wrap">
+                                  {selectedPlayer.items.map((item: number, i: number) => (
+                                     item ? <img key={i} src={getItemIcon(item, riotVersion)} className="w-10 h-10 rounded border border-white/10 shrink-0" /> : <div key={i} className="w-10 h-10 bg-white/5 rounded border border-white/5 shrink-0" />
+                                  ))}
+                               </div>
+                            </div>
+                         </div>
+
+                         {/* Economy & Vision */}
+                         <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Economia & Visão</h4>
+                            <div className="space-y-2">
+                               <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">Gold Total</span>
+                                  <div className="text-right">
+                                    <span className="block font-bold text-amber-300">{(selectedPlayer.gold / 1000).toFixed(1)}k</span>
+                                    <span className="text-[10px] text-muted-foreground">{(selectedPlayer.goldShare || 0).toFixed(1)}% share</span>
+                                  </div>
+                               </div>
+                               <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">GPM</span>
+                                  <span className="font-bold text-amber-200">{(selectedPlayer.gpm || 0).toFixed(0)}</span>
+                               </div>
+                               <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">CS Total</span>
+                                  <span className="font-bold text-blue-300">{selectedPlayer.cs} <span className="text-[10px] text-muted-foreground">({(selectedPlayer.cspm || 0).toFixed(1)}/min)</span></span>
+                               </div>
+                               <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">Vision Score</span>
+                                  <div className="text-right">
+                                     <span className="block font-bold text-purple-300">{selectedPlayer.vision || 0}</span>
+                                     <span className="text-[10px] text-muted-foreground">{(selectedPlayer.vspm || 0).toFixed(2)}/min • {(selectedPlayer.visionShare || 0).toFixed(1)}%</span>
+                                  </div>
+                               </div>
+                                <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">Wards (Placed/Killed)</span>
+                                  <span className="font-bold">{selectedPlayer.wardsPlaced || 0} / {selectedPlayer.wardsKilled || 0}</span>
+                               </div>
+                               <div className="flex justify-between p-2 hover:bg-white/5 rounded transition-colors">
+                                  <span className="text-sm text-muted-foreground">Control Wards</span>
+                                  <span className="font-bold text-pink-300">{selectedPlayer.visionWardsBoughtInGame || 0}</span>
+                               </div>
+                            </div>
+                         </div>
+                     </div>
+                  </>
+               )}
+            </DialogContent>
+         </Dialog>
+      </>
+   )
+}
+

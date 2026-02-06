@@ -131,7 +131,7 @@ export function MediaUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-[#0A0A0B] border-white/5 shadow-2xl">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] flex flex-col bg-[#0A0A0B] border-white/5 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-black uppercase tracking-widest text-white/90">
             Adicionar Mídia
@@ -141,7 +141,7 @@ export function MediaUploadModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 flex-1 overflow-y-auto pr-2">
           <div className="space-y-3">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Tipo de Conteúdo</Label>
             <div className="grid grid-cols-3 gap-2">

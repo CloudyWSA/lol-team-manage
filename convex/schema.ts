@@ -177,6 +177,20 @@ export default defineSchema({
     matches: v.optional(v.array(v.any())),
   }).index("by_team", ["teamId"]).index("by_puuid", ["puuid"]),
 
+  scoutingMatches: defineTable({
+    teamId: v.id("scoutingTeams"),
+    matchId: v.string(),
+    tournament: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    date: v.number(),
+    duration: v.number(),
+    win: v.boolean(),
+    myTeam: v.array(v.any()), // Full stats & composition
+    enemyTeam: v.array(v.any()),
+    snapshots: v.any(), // 10m, 15m, 20m aggregated data
+    objectives: v.any(),
+  }).index("by_team", ["teamId"]),
+
   coachAlerts: defineTable({
     type: v.union(v.literal("performance"), v.literal("health")),
     userId: v.id("users"),

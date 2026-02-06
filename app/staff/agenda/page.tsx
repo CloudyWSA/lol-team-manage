@@ -244,23 +244,7 @@ export default function StaffAgendaPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-white/5 bg-white/[0.02] border-dashed relative overflow-hidden rounded-2xl">
-                  <CardContent className="p-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] mb-6 flex items-center gap-3 text-white/30">
-                      <TrendingUp className="h-3 w-3 text-primary/50" /> Operações Rápidas
-                    </h3>
-                    <div className="flex flex-col gap-3">
-                      <Button 
-                        onClick={addNewEvent} 
-                        variant="outline"
-                        className="w-full justify-between px-5 h-14 text-[11px] font-black uppercase tracking-[0.15em] border-white/5 bg-white/[0.03] hover:bg-white/[0.08] text-white/60 hover:text-white rounded-xl group transition-all"
-                      >
-                        Registrar Evento
-                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform text-primary" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+
               </div>
 
               {/* Right Side: Timeline Display */}

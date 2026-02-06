@@ -83,6 +83,15 @@ export function PlayerSoloQDetail({ teamId, playerId }: PlayerSoloQDetailProps) 
   }
 
   const matches = player?.matches || []
+  const [visibleMatchesCount, setVisibleMatchesCount] = useState(20)
+  
+  const visibleMatches = useMemo(() => {
+    return matches.slice(0, visibleMatchesCount)
+  }, [matches, visibleMatchesCount])
+
+  const handleLoadMore = () => {
+    setVisibleMatchesCount(prev => prev + 20)
+  }
   
   // Aggregate Insights
   const insights = useMemo(() => {
@@ -217,7 +226,7 @@ export function PlayerSoloQDetail({ teamId, playerId }: PlayerSoloQDetailProps) 
 
           <div className="space-y-4">
             <AnimatePresence mode="popLayout">
-              {matches.map((match, idx) => (
+              {visibleMatches.map((match, idx) => (
                 <motion.div
                   key={match.matchId}
                   initial={{ opacity: 0, y: 10 }}
@@ -233,6 +242,18 @@ export function PlayerSoloQDetail({ teamId, playerId }: PlayerSoloQDetailProps) 
                 </motion.div>
               ))}
             </AnimatePresence>
+
+            {matches.length > visibleMatchesCount && (
+              <div className="flex justify-center py-6">
+                <Button 
+                  onClick={handleLoadMore} 
+                  variant="outline" 
+                  className="w-full max-w-md h-12 text-xs font-black uppercase tracking-widest border-white/10 hover:bg-white/5 transition-all"
+                >
+                  Carregar Mais Partidas ({matches.length - visibleMatchesCount} restantes)
+                </Button>
+              </div>
+            )}
 
             {matches.length === 0 && (
               <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-3xl">

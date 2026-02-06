@@ -106,3 +106,50 @@ export const removeScoutedPlayer = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// --- SCOUTING MATCHES ---
+// Sync force comment
+export const getScoutingMatches = query({
+  args: { teamId: v.id("scoutingTeams") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("scoutingMatches")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const addScoutingMatch = mutation({
+  args: {
+    teamId: v.id("scoutingTeams"),
+    matchId: v.string(),
+    tournament: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    date: v.number(),
+    duration: v.number(),
+    win: v.boolean(),
+    myTeam: v.array(v.any()),
+    enemyTeam: v.array(v.any()),
+    snapshots: v.any(),
+    objectives: v.any(),
+  },
+  handler: async (ctx, args) => {
+    // Check if match already exists for this team to prevent duplicates
+    const existing = await ctx.db
+      .query("scoutingMatches")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .filter((q) => q.eq(q.field("matchId"), args.matchId))
+      .first();
+
+    if (existing) {
+       // Update existing? Or just return? Let's update for now or just skip.
+       // For this implementation, we'll replace/update if it exists, or just return existing ID.
+       // Let's do an update to allow refreshing data.
+       await ctx.db.patch(existing._id, args);
+       return existing._id;
+    }
+
+    return await ctx.db.insert("scoutingMatches", args);
+  },
+});

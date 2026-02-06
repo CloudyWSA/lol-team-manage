@@ -116,7 +116,7 @@ function LoginPageContent() {
           {/* Logo */}
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex items-center justify-center">
-              <img src="/logo.png" alt="Invokers Logo" className="h-20 w-auto invokers-glow" />
+              <img src="/logo.png" alt="Invokers Logo" className="h-20 w-auto invokers-logo-glow" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Invokers</h1>
             <p className="mt-1 text-sm text-muted-foreground">Team Management Platform</p>
