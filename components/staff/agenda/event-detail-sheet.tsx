@@ -78,7 +78,7 @@ export function EventDetailSheet({ event, isOpen, onClose, onUpdate, onDelete, t
     if (!localEvent) return
     const updated = { ...localEvent, ...updates }
     setLocalEvent(updated)
-    onUpdate(updated)
+    // onUpdate(updated) - Removed to prevent auto-save/input glitch
   }
 
   const typeConfig = {
@@ -294,7 +294,12 @@ export function EventDetailSheet({ event, isOpen, onClose, onUpdate, onDelete, t
         <div className="p-6 bg-card border-t border-border/30 flex gap-2 shrink-0">
           <Button 
             className="flex-1 gap-2 font-bold tracking-tight shadow-md"
-            onClick={onClose}
+            onClick={() => {
+              if (localEvent) {
+                onUpdate(localEvent)
+                onClose()
+              }
+            }}
           >
             <CheckCircle2 className="h-4 w-4" /> SALVAR ALTERAÇÕES
           </Button>

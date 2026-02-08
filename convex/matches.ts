@@ -31,7 +31,9 @@ export const createMatch = mutation({
     tournament: v.string(),
     opponent: v.string(),
     date: v.string(),
+    time: v.optional(v.string()),
     stage: v.string(),
+    broadcast: v.optional(v.string()),
     teamId: v.id("teams"),
   },
   handler: async (ctx, args) => {

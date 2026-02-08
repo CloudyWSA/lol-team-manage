@@ -176,7 +176,7 @@ export default function StaffAgendaPage() {
       endTime: "13:00",
       type: "Review",
       status: "Pendente",
-      location: "Gaming House",
+      location: "",
       assignees: [],
       priority: "Media",
       teamId: user.teamId as Id<"teams">,
