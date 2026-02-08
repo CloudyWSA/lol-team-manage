@@ -154,8 +154,16 @@ export default function StaffAgendaPage() {
     await updateEventMutation({
       id: updatedEvent.id as Id<"agendaEvents">,
       title: updatedEvent.title,
+      description: updatedEvent.description,
+      startTime: updatedEvent.startTime,
+      endTime: updatedEvent.endTime,
+      type: updatedEvent.type as any,
       status: updatedEvent.status as "Confirmado" | "Pendente" | "Cancelado",
+      location: updatedEvent.location,
       assignees: updatedEvent.assignees,
+      priority: updatedEvent.priority as "Baixa" | "Media" | "Alta",
+      observations: updatedEvent.observations,
+      date: updatedEvent.date,
     })
   }
 

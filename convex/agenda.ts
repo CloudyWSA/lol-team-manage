@@ -27,7 +27,15 @@ export const createEvent = mutation({
     description: v.optional(v.string()),
     startTime: v.string(),
     endTime: v.string(),
-    type: v.union(v.literal("Review"), v.literal("Treino"), v.literal("Estratégia"), v.literal("Outro")),
+    type: v.union(
+      v.literal("Review"), 
+      v.literal("Treino"), 
+      v.literal("Estratégia"), 
+      v.literal("Outro"),
+      v.literal("Scrim"),
+      v.literal("1-on-1"),
+      v.literal("Media")
+    ),
     status: v.union(v.literal("Confirmado"), v.literal("Pendente"), v.literal("Cancelado")),
     location: v.string(),
     assignees: v.array(v.string()),
@@ -47,7 +55,15 @@ export const updateEvent = mutation({
     description: v.optional(v.string()),
     startTime: v.optional(v.string()),
     endTime: v.optional(v.string()),
-    type: v.optional(v.union(v.literal("Review"), v.literal("Treino"), v.literal("Estratégia"), v.literal("Outro"))),
+    type: v.optional(v.union(
+      v.literal("Review"), 
+      v.literal("Treino"), 
+      v.literal("Estratégia"), 
+      v.literal("Outro"),
+      v.literal("Scrim"),
+      v.literal("1-on-1"),
+      v.literal("Media")
+    )),
     status: v.optional(v.union(v.literal("Confirmado"), v.literal("Pendente"), v.literal("Cancelado"))),
     location: v.optional(v.string()),
     assignees: v.optional(v.array(v.string())),
