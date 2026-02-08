@@ -14,7 +14,9 @@ export async function getLatestVersion() {
   }
 }
 
-export function getChampionIcon(championName: string, version: string) {
+export function getChampionIcon(championName: string | undefined, version: string) {
+  if (!championName || !version) return null 
+  
   // Normalize names for Data Dragon: "Lee Sin" -> "LeeSin", "Kai'Sa" -> "Kaisa"
   // Note: some champions have special internal names (e.g., Wukong -> MonkeyKing)
   let normalized = championName.replace(/[\s']+/g, "")
@@ -24,16 +26,19 @@ export function getChampionIcon(championName: string, version: string) {
   return `${DDRAGON_BASE}/cdn/${version}/img/champion/${normalized}.png`
 }
 
-export function getItemIcon(itemId: string | number, version: string) {
+export function getItemIcon(itemId: string | number | undefined, version: string) {
+  if (!itemId || !version) return null
   return `${DDRAGON_BASE}/cdn/${version}/img/item/${itemId}.png`
 }
 
-export function getRuneIcon(runePath: string) {
+export function getRuneIcon(runePath: string | undefined) {
+  if (!runePath) return null
   // Community Dragon is usually better for runes/perks
   return `${CDRAGON_BASE}/plugins/rcp-be-lol-game-data/global/default/v1/${runePath.toLowerCase()}`
 }
 
-export function getChampionSplash(championName: string) {
+export function getChampionSplash(championName: string | undefined) {
+  if (!championName) return null
   let normalized = championName.replace(/[\s']+/g, "")
   if (normalized === "Wukong") normalized = "MonkeyKing"
   

@@ -180,5 +180,20 @@ export const listByTeam = query({
   },
 });
 
+export const getById = query({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.id);
+    if (!user) return null;
+
+    if (user.avatar && !user.avatar.startsWith("http")) {
+      const url = await ctx.storage.getUrl(user.avatar as Id<"_storage">);
+      if (url) return { ...user, avatar: url };
+    }
+    
+    return user;
+  },
+});
+
 
 

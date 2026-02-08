@@ -134,3 +134,152 @@ export const getPlayerStats = query({
     return stats;
   }
 });
+// ... (rest of the file remains standard)
+
+export const getAdvancedStats = query({
+  args: { teamId: v.id("teams") },
+  handler: async (ctx, args) => {
+    const gameStats = await ctx.db
+      .query("playerGameStats")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .collect();
+
+    if (gameStats.length === 0) {
+      return { correlations: [], boxplots: [], insights: [] };
+    }
+
+    // To calculate correlations with Win/Loss, we need the game results
+    const scrimGames = await ctx.db.query("scrimGames").collect(); // In a real app, filter better
+    const officialGames = await ctx.db.query("officialGames").collect();
+    
+    const gameResults = new Map();
+    scrimGames.forEach(g => gameResults.set(g._id, g.result === "W" ? 1 : 0));
+    officialGames.forEach(g => gameResults.set(g._id, g.win ? 1 : 0));
+
+    const statsWithResult = gameStats.map(s => ({
+      ...s,
+      isWin: gameResults.get(s.gameId as any) || 0
+    }));
+
+    const metrics = ["kills", "deaths", "assists", "cs", "damageDealt", "goldEarned"] as const;
+    
+    // 1. Pearson Correlation (Win vs Metrics)
+    const correlations = metrics.map(metric => {
+      const x = statsWithResult.map(s => s[metric]);
+      const y = statsWithResult.map(s => s.isWin);
+      return {
+        metric: metric.toUpperCase(),
+        correlation: Number(calculatePearson(x, y).toFixed(2))
+      };
+    });
+
+    // 2. Boxplot Data (Separated by Win/Loss)
+    const boxplots = metrics.map(metric => {
+      const winValues = statsWithResult.filter(s => s.isWin === 1).map(s => s[metric]);
+      const lossValues = statsWithResult.filter(s => s.isWin === 0).map(s => s[metric]);
+      
+      return {
+        metric: metric.toUpperCase(),
+        win: calculateBoxplot(winValues),
+        loss: calculateBoxplot(lossValues)
+      };
+    });
+
+    // 3. Momentum Analysis (Probability of winning given early objectives)
+    const earlyObjectives = [
+      { key: "firstBlood", label: "First Blood" },
+      { key: "firstTower", label: "First Tower" },
+    ];
+
+    const momentum = await Promise.all(earlyObjectives.map(async (obj) => {
+      const GamesWithObj = [...scrimGames.filter(g => g.objectives?.[obj.key as keyof typeof g.objectives]), ...officialGames.filter(g => g.objectives?.[obj.key as keyof typeof g.objectives])];
+      const winRateWithObj = GamesWithObj.length > 0 ? (GamesWithObj.filter(g => (g as any).result === "W" || (g as any).win).length / GamesWithObj.length) : 0;
+      
+      return {
+        objective: obj.label,
+        winRate: Number((winRateWithObj * 100).toFixed(1))
+      };
+    }));
+
+    // 4. Intra-player Synergy (Correlation between metrics for a typical player)
+    // "Do our players convert gold into damage efficiently?"
+    const dmgGoldCorr = calculatePearson(gameStats.map(s => s.goldEarned), gameStats.map(s => s.damageDealt));
+
+    // 5. Synergy (Player Duo Win Rates)
+    const synergy: any[] = [];
+    const teamGames = [...scrimGames.filter(g => g.participants), ...officialGames.filter(g => (g as any).participants)]; // officialGames might not have participants in this schema version easily
+    
+    // Using scrimGames for synergy as it has participants array
+    const players = await ctx.db.query("users").withIndex("by_team", q => q.eq("teamId", args.teamId)).filter(q => q.eq(q.field("role"), "player")).collect();
+    
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        const p1 = players[i];
+        const p2 = players[j];
+        
+        const sharedGames = scrimGames.filter(g => 
+          g.participants?.some(p => p.summonerName.includes(p1.name)) && 
+          g.participants?.some(p => p.summonerName.includes(p2.name))
+        );
+        
+        if (sharedGames.length > 0) {
+          const wins = sharedGames.filter(g => g.result === "W").length;
+          synergy.push({
+            pair: `${p1.name} + ${p2.name}`,
+            winRate: Number(((wins / sharedGames.length) * 100).toFixed(1)),
+            games: sharedGames.length
+          });
+        }
+      }
+    }
+
+    // 6. Full Correlation Matrix (Metric vs Metric)
+    const correlationMatrix = metrics.map(m1 => {
+      const x = statsWithResult.map(s => s[m1]);
+      return {
+        metric: m1.toUpperCase(),
+        correlations: metrics.map(m2 => {
+          const y = statsWithResult.map(s => s[m2]);
+          return {
+            metric: m2.toUpperCase(),
+            value: Number(calculatePearson(x, y).toFixed(2))
+          };
+        })
+      };
+    });
+
+    return { 
+      correlations, 
+      correlationMatrix,
+      boxplots, 
+      momentum, 
+      efficiency: Number(dmgGoldCorr.toFixed(2)),
+      synergy: synergy.sort((a, b) => b.winRate - a.winRate).slice(0, 5)
+    };
+  }
+});
+
+function calculatePearson(x: number[], y: number[]) {
+  const n = x.length;
+  if (n === 0) return 0;
+  const sumX = x.reduce((a, b) => a + b, 0);
+  const sumY = y.reduce((a, b) => a + b, 0);
+  const sumXY = x.reduce((a, b, i) => a + b * y[i], 0);
+  const sumX2 = x.reduce((a, b) => a + b * b, 0);
+  const sumY2 = y.reduce((a, b) => a + b * b, 0);
+  const num = n * sumXY - sumX * sumY;
+  const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  return den === 0 ? 0 : num / den;
+}
+
+function calculateBoxplot(values: number[]) {
+  if (values.length === 0) return { min: 0, q1: 0, median: 0, q3: 0, max: 0 };
+  const sorted = [...values].sort((a, b) => a - b);
+  return {
+    min: sorted[0],
+    q1: sorted[Math.floor(sorted.length * 0.25)],
+    median: sorted[Math.floor(sorted.length * 0.5)],
+    q3: sorted[Math.floor(sorted.length * 0.75)],
+    max: sorted[sorted.length - 1]
+  };
+}

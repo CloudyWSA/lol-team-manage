@@ -46,6 +46,7 @@ import {
   Edit2,
   Plus,
   Loader2,
+  RefreshCw,
 } from "lucide-react"
 import { 
   getChampionIcon, 
@@ -53,7 +54,7 @@ import {
 import {
   MatchTeamRoster,
 } from "@/components/matches/match-detail-shared"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 import { toast } from "sonner"
@@ -72,15 +73,36 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
   
   // Convex Data
   const scrim = useQuery(api.scrims.getScrimWithGames, { id: scrimId as Id<"scrims"> })
+  const team = useQuery(api.teams.getTeam, scrim?.teamId ? { teamId: scrim.teamId } : "skip")
+  const scrimNotes = useQuery(api.scrimNotes.getNotesByScrim, { scrimId: scrimId as Id<"scrims"> })
+  const scrimMedia = useQuery(api.media.getScrimMedia, { scrimId: scrimId as Id<"scrims"> })
   const updateTrainingPlan = useMutation(api.scrims.updateTrainingPlan)
+  const addNote = useMutation(api.scrimNotes.addNote)
+  const deleteNote = useMutation(api.scrimNotes.deleteNote)
+  
+  const generateUploadUrl = useAction(api.media.generateUploadUrl)
+  const saveScrimMedia = useMutation(api.media.saveScrimMedia)
+  const deleteScrimMedia = useMutation(api.media.deleteScrimMedia)
 
   const [isPlanEditing, setIsPlanEditing] = useState(false)
+  const [isOpponentEditing, setIsOpponentEditing] = useState(false)
+  const [isNotesEditing, setIsNotesEditing] = useState(false)
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [selectedMedia, setSelectedMedia] = useState<any | null>(null)
+  
   const [focusDraft, setFocusDraft] = useState("")
+  const [opponentProfileDraft, setOpponentProfileDraft] = useState("")
+  const [notesDraft, setNotesDraft] = useState("")
   const [objectivesDraft, setObjectivesDraft] = useState<string[]>([])
   const [newObjective, setNewObjective] = useState("")
+  
+  const [matchIdInput, setMatchIdInput] = useState("")
+  const [gameNumberInput, setGameNumberInput] = useState("1")
+  const [syncRegion, setSyncRegion] = useState("BR")
+  const [isSyncing, setIsSyncing] = useState(false)
 
-  // Sync draft with scrim data when editing starts
+  // Sync drafts with scrim data when editing starts
   useEffect(() => {
     if (isPlanEditing && scrim?.trainingPlan) {
       setFocusDraft(scrim.trainingPlan.focus)
@@ -90,6 +112,18 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
       setObjectivesDraft([])
     }
   }, [isPlanEditing, scrim])
+
+  useEffect(() => {
+    if (isOpponentEditing && scrim) {
+      setOpponentProfileDraft(scrim.opponentProfile || "")
+    }
+  }, [isOpponentEditing, scrim])
+
+  useEffect(() => {
+    if (isNotesEditing && scrim) {
+      setNotesDraft(scrim.notes || "")
+    }
+  }, [isNotesEditing, scrim])
 
   const handleSavePlan = async () => {
     if (!scrim) return
@@ -108,6 +142,60 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
     }
   }
 
+  const updateOpponentProfile = useMutation(api.scrims.updateOpponentProfile)
+
+  const handleSaveOpponentProfile = async () => {
+    if (!scrim) return
+    try {
+      await updateOpponentProfile({
+        id: scrim._id,
+        opponentProfile: opponentProfileDraft,
+      })
+      toast.success("Perfil do adversário atualizado!")
+      setIsOpponentEditing(false)
+    } catch (error) {
+      toast.error("Erro ao salvar perfil")
+    }
+  }
+
+  const updateNotes = useMutation(api.scrims.updateNotes)
+
+  const handleSaveNotes = async () => {
+    if (!scrim) return
+    try {
+      await updateNotes({
+        id: scrim._id,
+        notes: notesDraft,
+      })
+      toast.success("Notas atualizadas!")
+      setIsNotesEditing(false)
+    } catch (error) {
+      toast.error("Erro ao salvar notas")
+    }
+  }
+
+  const syncScrimGame = useAction(api.riotApi.syncScrimGame)
+
+  const handleMatchSync = async () => {
+    if (!scrim || !matchIdInput) return
+    setIsSyncing(true)
+    try {
+      await syncScrimGame({
+        scrimId: scrim._id,
+        matchId: matchIdInput,
+        gameNumber: parseInt(gameNumberInput),
+        region: syncRegion,
+      })
+      toast.success(`Partida ${gameNumberInput} sincronizada com sucesso!`)
+      setIsSyncDialogOpen(false)
+      setMatchIdInput("")
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao sincronizar partida")
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   const addObjective = () => {
     if (newObjective.trim()) {
       setObjectivesDraft([...objectivesDraft, newObjective.trim()])
@@ -119,15 +207,92 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
     setObjectivesDraft(objectivesDraft.filter((_: any, i: number) => i !== index))
   }
 
-  const handleSyncScrim = async () => {
-    // Placeholder for Riot API sync
-    toast.info("Iniciando sincronização com a Riot API...")
-    // In a real scenario, we'd call the action here
+  const handleMediaUpload = async (data: any) => {
+    if (!scrim) return
+    
+    try {
+      let storageId = undefined
+      let type: "youtube" | "video" | "image" = "youtube"
+      let url = data.url
+
+      if (data.file) {
+        // Step 1: Get upload URL
+        const uploadUrl = await generateUploadUrl()
+        
+        // Step 2: POST the file
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": data.file.type },
+          body: data.file,
+        })
+        
+        if (!result.ok) throw new Error("Falha no upload do arquivo")
+        
+        const { storageId: sid } = await result.json()
+        storageId = sid
+        type = data.file.type.startsWith("image/") ? "image" : "video"
+        url = undefined // Will be generated by the query from storageId
+      } else if (url) {
+        type = "youtube"
+      }
+
+      // Step 3: Save reference in database
+      await saveScrimMedia({
+        scrimId: scrim._id,
+        type,
+        title: data.file ? data.file.name : "Link Externo",
+        url,
+        storageId,
+        tags: [],
+      })
+
+      toast.success("Mídia enviada com sucesso!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao enviar mídia")
+    }
   }
 
-  const handleMediaUpload = (data: any) => {
-    toast.success("Mídia enviada com sucesso!")
-  }
+  // Memoized data mapping
+  const matches = useMemo(() => {
+    if (!scrim) return []
+    return scrim.games.map(g => {
+      const mapParticipant = (p: any) => ({
+        name: p.summonerName,
+        champion: p.championName,
+        role: p.role,
+        dmg: p.totalDamageDealtToChampions || p.dmg || 0,
+        vision: p.visionScore || p.vision || 0,
+        gold: p.goldEarned || p.gold || 0,
+        kda: typeof p.kills === 'number' ? `${p.kills}/${p.deaths}/${p.assists}` : p.kda || "0/0/0",
+        cs: p.cs || 0,
+        items: (p.items || []).slice(0, 6).map((id: number) => ({ id })),
+        trinket: p.items?.[6] ? { id: p.items[6] } : null,
+        win: p.win
+      })
+
+      return {
+        id: g._id,
+        number: g.gameNumber,
+        result: g.result === "W" ? "Victory" : "Defeat",
+        duration: g.duration,
+        teams: {
+          blue: {
+            name: team?.name || "Meu Time",
+            won: g.result === "W",
+            stats: g.blueStats,
+            players: g.participants?.filter((p: any) => p.teamId === 100).map(mapParticipant) || []
+          },
+          red: {
+            name: scrim.opponent,
+            won: g.result === "L",
+            stats: g.redStats,
+            players: g.participants?.filter((p: any) => p.teamId === 200).map(mapParticipant) || []
+          }
+        }
+      }
+    })
+  }, [scrim, team])
 
   if (!scrim) return <div className="flex h-60 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>
 
@@ -137,32 +302,6 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
     ],
     focus: "Descreva o foco principal do treino aqui."
   }
-
-  // Map games to display format
-  const matches = scrim.games.map(g => ({
-    id: g._id,
-    number: g.gameNumber,
-    result: g.result === "W" ? "Victory" : "Defeat",
-    duration: g.duration,
-    teams: {
-      blue: {
-        name: "Invokers",
-        won: g.result === "W",
-        players: [
-          { name: "ThunderStrike", role: "Top", champion: "Jax" },
-          { name: "ShadowJungle", role: "Jungle", champion: "LeeSin" },
-          { name: "ArcaneWizard", role: "Mid", champion: "Orianna" },
-          { name: "PhantomADC", role: "ADC", champion: "Ezreal" },
-          { name: "GuardianSupp", role: "Support", champion: "Leona" },
-        ]
-      },
-      red: {
-        name: scrim.opponent,
-        won: g.result === "L",
-        players: []
-      }
-    }
-  }))
 
   return (
     <div className="space-y-6">
@@ -314,67 +453,339 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
                   <CardTitle className="flex items-center gap-2 text-yellow-500">
                     <AlertCircle className="h-5 w-5" /> Perfil do Adversário
                   </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setIsOpponentEditing(true)}>
+                    <Edit2 className="h-4 w-4 mr-2" /> Editar
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground italic">"Estilo de jogo agressivo no early game, focado em dives bot side."</p>
-                <Button variant="outline" className="w-full" onClick={handleSyncScrim}>
-                  <TrendingUp className="h-4 w-4 mr-2" /> Sincronizar dados Riot
-                </Button>
+                <p className="text-sm text-muted-foreground italic">
+                  {scrim.opponentProfile ? `"${scrim.opponentProfile}"` : "\"Nenhum perfil definido para este adversário.\""}
+                </p>
               </CardContent>
             </Card>
+
+            {/* Edit Opponent Profile Dialog */}
+            <Dialog open={isOpponentEditing} onOpenChange={setIsOpponentEditing}>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Editar Perfil do Adversário</DialogTitle>
+                  <DialogDescription>
+                    Descreva o estilo de jogo, pontos fortes e fracos do adversário.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label className="text-yellow-500 uppercase font-bold tracking-wider text-xs">Observações Táticas</Label>
+                    <Textarea
+                      placeholder="Ex: Estilo de jogo agressivo no early game..."
+                      value={opponentProfileDraft}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOpponentProfileDraft(e.target.value)}
+                      className="bg-muted/50 resize-none"
+                      rows={6}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button variant="outline" onClick={() => setIsOpponentEditing(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSaveOpponentProfile} className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                      Salvar Perfil
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
         
         {activeTab === "matches" && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2 p-1 rounded-xl bg-muted/30 border border-border/50 w-fit">
+                {matches.length > 0 && matches.map((match: any, idx: number) => (
+                  <Button
+                    key={match.id}
+                    variant={selectedMatch === idx ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedMatch(idx)}
+                    className="rounded-lg font-bold"
+                  >
+                    Game {match.number}
+                  </Button>
+                ))}
+              </div>
+              <Button onClick={() => setIsSyncDialogOpen(true)} variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/10">
+                <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar Partida
+              </Button>
+            </div>
+
             {matches.length > 0 ? (
               <>
-                <div className="flex gap-2 p-1 rounded-xl bg-muted/30 border border-border/50 w-fit">
-                  {matches.map((match, idx) => (
-                    <Button
-                      key={match.id}
-                      variant={selectedMatch === idx ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setSelectedMatch(idx)}
-                      className="rounded-lg font-bold"
-                    >
-                      Game {match.number}
-                    </Button>
-                  ))}
-                </div>
-                <MatchTeamRoster team={matches[selectedMatch].teams.blue} isBlue={true} version={gameVersion} />
-                <Card className="stat-card border-border/50 p-6 opacity-60">
-                  <p className="text-center text-sm font-medium">Dados detalhados da partida API Riot em processamento...</p>
-                </Card>
+                {matches[selectedMatch] && (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <MatchTeamRoster team={matches[selectedMatch].teams.blue} isBlue={true} version={gameVersion} />
+                    <MatchTeamRoster team={matches[selectedMatch].teams.red} isBlue={false} version={gameVersion} />
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl opacity-50">
                 <Gamepad2 className="h-10 w-10 mb-2" />
                 <p className="font-bold">Nenhum registro de partida encontrado</p>
-                <p className="text-xs">Os dados das partidas individuais serão sincronizados após o treino.</p>
+                <p className="text-xs mb-4">Os dados das partidas individuais serão sincronizados após o treino.</p>
+                <Button onClick={() => setIsSyncDialogOpen(true)} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar com Riot Match ID
+                </Button>
+              </div>
+            )}
+
+            {/* Sync Match Dialog */}
+            <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Sincronizar com Riot API</DialogTitle>
+                  <DialogDescription>
+                    Insira o ID da partida da Riot para importar os dados detalhados.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Riot Match ID</Label>
+                    <Input 
+                      placeholder="Ex: BR1_2894723847" 
+                      value={matchIdInput}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMatchIdInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Número do Game</Label>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        max="5"
+                        value={gameNumberInput}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGameNumberInput(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Região</Label>
+                      <Input 
+                        value={syncRegion}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSyncRegion(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleMatchSync} disabled={isSyncing || !matchIdInput}>
+                      {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                      Sincronizar
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+        
+        {activeTab === "media" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Video className="h-4 w-4" /> Biblioteca de Mídia
+              </h3>
+              <Button onClick={() => setIsUploadModalOpen(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" /> Adicionar Mídia
+              </Button>
+            </div>
+
+            {scrimMedia && scrimMedia.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {scrimMedia.map((item) => (
+                  <Card key={item._id} className="stat-card border-border/50 group overflow-hidden">
+                    <div 
+                      className="aspect-video bg-muted/20 relative flex items-center justify-center overflow-hidden border-b border-border/50 cursor-zoom-in"
+                      onClick={() => setSelectedMedia(item)}
+                    >
+                      {item.type === "image" && item.url ? (
+                        <Image src={item.url} alt={item.title} fill className="object-cover" />
+                      ) : item.type === "youtube" ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
+                          <Youtube className="h-10 w-10 text-red-600" />
+                        </div>
+                      ) : (
+                        <Video className="h-10 w-10 text-primary/50" />
+                      )}
+                      
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="destructive" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => deleteScrimMedia({ id: item._id })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">{item.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" asChild>
+                           <a href={item.url} target="_blank" rel="noreferrer">
+                             <ExternalLink className="h-3.5 w-3.5" />
+                           </a>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl opacity-50">
+                <Video className="h-10 w-10 mb-2" />
+                <p className="font-bold">Nenhum VOD ou Screenshot</p>
+                <p className="text-xs mb-4">Adicione replays ou fotos para documentar este treino.</p>
+                <Button onClick={() => setIsUploadModalOpen(true)} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" /> Upload de Mídia
+                </Button>
               </div>
             )}
           </div>
         )}
         
-        {activeTab === "media" && (
-           <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl opacity-50">
-            <Video className="h-10 w-10 mb-2" />
-            <p className="font-bold">VODs ainda não disponíveis</p>
-            <p className="text-xs mb-4">Uploade os replays para iniciar a análise automática.</p>
-            <Button onClick={() => setIsUploadModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Upload de Mídia
-            </Button>
-          </div>
-        )}
-        
         {activeTab === "notes" && (
           <div className="space-y-6">
-             <Card className="stat-card border-border/50 p-6">
-                <h3 className="font-bold mb-4">Notas Estratégicas</h3>
-                <p className="text-sm leading-relaxed">{scrim.notes || "Sem observações adicionais para este scrim."}</p>
+             <Card className="stat-card border-border/50 overflow-hidden">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                       <FileText className="h-5 w-5 text-primary" /> Notas Estratégicas
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setIsNotesEditing(true)}>
+                       <Edit2 className="h-4 w-4 mr-2" /> Editar Notas
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 pt-0">
+                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                     {scrim.notes || "Sem observações adicionais para este scrim."}
+                   </p>
+                </CardContent>
              </Card>
+
+             {/* Edit Notes Dialog */}
+             <Dialog open={isNotesEditing} onOpenChange={setIsNotesEditing}>
+               <DialogContent className="sm:max-w-2xl">
+                 <DialogHeader>
+                   <DialogTitle>Editar Notas Estratégicas</DialogTitle>
+                   <DialogDescription>
+                     Adicione observações gerais, planos para o draft ou feedback pós-jogo.
+                   </DialogDescription>
+                 </DialogHeader>
+                 <div className="space-y-4 py-4">
+                   <div className="space-y-2">
+                     <Label className="text-primary uppercase font-bold tracking-wider text-xs">Conteúdo das Notas</Label>
+                     <Textarea
+                       placeholder="Insira suas observações estratégicas aqui..."
+                       value={notesDraft}
+                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotesDraft(e.target.value)}
+                       className="bg-muted/50 resize-none"
+                       rows={12}
+                     />
+                   </div>
+                   <div className="flex justify-end gap-3 pt-2">
+                     <Button variant="outline" onClick={() => setIsNotesEditing(false)}>
+                       Cancelar
+                     </Button>
+                     <Button onClick={handleSaveNotes}>
+                       Salvar Notas
+                     </Button>
+                   </div>
+                 </div>
+               </DialogContent>
+             </Dialog>
+
+             {/* Categorized Notes */}
+             <div className="grid gap-6 md:grid-cols-2 mt-6">
+               {["tactical", "draft", "behavior", "general"].map((cat) => {
+                 const catNotes = (scrimNotes as any)?.filter((n: any) => n.category === cat) || []
+                 const icons: Record<string, any> = {
+                   tactical: Target,
+                   draft: Swords,
+                   behavior: User,
+                   general: FileText
+                 }
+                 const labels: Record<string, string> = {
+                   tactical: "Tático",
+                   draft: "Draft",
+                   behavior: "Comportamento",
+                   general: "Geral"
+                 }
+                 const Icon = icons[cat]
+                 
+                 return (
+                   <Card key={cat} className="stat-card border-border/50 bg-muted/10">
+                     <CardHeader className="pb-3">
+                       <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                         <Icon className="h-4 w-4 text-primary" /> {labels[cat]}
+                       </CardTitle>
+                     </CardHeader>
+                     <CardContent className="space-y-3">
+                       {catNotes.length > 0 ? (
+                         catNotes.map((note: any) => (
+                           <div key={note._id} className="group relative rounded-lg bg-background/50 p-3 border border-border/30">
+                             <p className="text-xs leading-relaxed">{note.content}</p>
+                             <div className="mt-2 flex items-center justify-between">
+                               <span className="text-[10px] text-muted-foreground font-medium">{note.author}</span>
+                               <Button 
+                                 variant="ghost" 
+                                 size="icon" 
+                                 onClick={() => deleteNote({ id: note._id })}
+                                 className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
+                               >
+                                 <Trash2 className="h-3 w-3" />
+                               </Button>
+                             </div>
+                           </div>
+                         ))
+                       ) : (
+                         <p className="text-[11px] text-muted-foreground italic py-2">Nenhuma nota nesta categoria.</p>
+                       )}
+                       <div className="pt-2">
+                         <Button 
+                           variant="ghost" 
+                           size="sm" 
+                           className="w-full justify-start text-[11px] font-bold hover:bg-primary/10 hover:text-primary"
+                           onClick={() => {
+                             const content = prompt(`Adicionar nota de ${labels[cat]}:`)
+                             if (content) {
+                               addNote({
+                                 scrimId: scrim._id,
+                                 category: cat as any,
+                                 content,
+                                 author: "Coach", 
+                               })
+                             }
+                           }}
+                         >
+                           <Plus className="h-3 w-3 mr-2" /> Adicionar Nota
+                         </Button>
+                       </div>
+                     </CardContent>
+                   </Card>
+                 )
+               })}
+             </div>
           </div>
         )}
       </div>
@@ -383,6 +794,51 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
         onClose={() => setIsUploadModalOpen(false)} 
         onUpload={handleMediaUpload}
       />
+
+      {/* Media Lightbox */}
+      <Dialog open={!!selectedMedia} onOpenChange={(open: boolean) => !open && setSelectedMedia(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-none bg-black/90 flex items-center justify-center overflow-hidden" showCloseButton={false}>
+          <div className="sr-only">
+            <DialogHeader>
+              <DialogTitle>{selectedMedia?.title || "Visualização de Mídia"}</DialogTitle>
+              <DialogDescription>Expansão de vídeo ou imagem do scrim.</DialogDescription>
+            </DialogHeader>
+          </div>
+          {selectedMedia && (
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              {selectedMedia.type === "image" ? (
+                <div className="relative w-full h-full min-h-[50vh]">
+                  <Image 
+                    src={selectedMedia.url ?? ""} 
+                    alt={selectedMedia.title} 
+                    fill 
+                    className="object-contain" 
+                  />
+                </div>
+              ) : selectedMedia.type === "youtube" ? (
+                <div className="aspect-video w-full max-w-5xl">
+                  <iframe
+                    src={selectedMedia.url?.replace("watch?v=", "embed/")}
+                    className="w-full h-full rounded-xl"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <video 
+                  src={selectedMedia.url} 
+                  controls 
+                  autoPlay
+                  className="max-w-full max-h-[85vh] rounded-lg"
+                />
+              )}
+              
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white/90 text-sm font-bold">
+                {selectedMedia.title}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

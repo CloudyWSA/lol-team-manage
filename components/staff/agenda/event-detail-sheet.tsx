@@ -27,7 +27,8 @@ import {
   Swords,
   Video,
   Brain,
-  Timer
+  Timer,
+  Check
 } from "lucide-react"
 import { AgendaEvent, EventType, EventStatus } from "./types"
 import { cn } from "@/lib/utils"
@@ -41,6 +42,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 
 interface EventDetailSheetProps {
   event: AgendaEvent | null
@@ -48,9 +62,10 @@ interface EventDetailSheetProps {
   onClose: () => void
   onUpdate: (updatedEvent: AgendaEvent) => void
   onDelete?: (id: string) => void
+  teamUsers?: any[]
 }
 
-export function EventDetailSheet({ event, isOpen, onClose, onUpdate, onDelete }: EventDetailSheetProps) {
+export function EventDetailSheet({ event, isOpen, onClose, onUpdate, onDelete, teamUsers = [] }: EventDetailSheetProps) {
   const [localEvent, setLocalEvent] = useState<AgendaEvent | null>(event)
 
   useEffect(() => {
@@ -193,15 +208,55 @@ export function EventDetailSheet({ event, isOpen, onClose, onUpdate, onDelete }:
                   <Badge 
                     key={i} 
                     variant="secondary" 
-                    className="text-[10px] font-bold h-6 gap-2"
+                    className="text-[10px] font-bold h-6 gap-2 pr-1 cursor-pointer hover:bg-destructive/20 transition-colors"
+                    onClick={() => {
+                      const updated = localEvent.assignees.filter((_, index) => index !== i)
+                      handleUpdate({ assignees: updated })
+                    }}
                   >
                     {name.charAt(0).toUpperCase()}
                     <span className="opacity-70">{name}</span>
+                    <Trash2 className="h-2 w-2 opacity-30" />
                   </Badge>
                 ))}
-                <Button variant="outline" size="icon" className="h-6 w-6 rounded-full border-dashed">
-                  <Plus className="h-3 w-3" />
-                </Button>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-6 w-6 rounded-full border-dashed">
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0 bg-card border-border/40" align="start">
+                    <Command className="bg-transparent">
+                      <CommandInput placeholder="Buscar usuário..." className="h-8 text-xs" />
+                      <CommandList>
+                        <CommandEmpty className="text-[10px] py-3 tracking-widest uppercase opacity-40">Nenhum usuário encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {teamUsers?.map((user) => (
+                            <CommandItem
+                              key={user._id}
+                              value={user.name}
+                              onSelect={() => {
+                                if (!localEvent.assignees.includes(user.name)) {
+                                  handleUpdate({ assignees: [...localEvent.assignees, user.name] })
+                                }
+                              }}
+                              className="text-[11px] font-bold gap-2 cursor-pointer"
+                            >
+                              <div className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px]">
+                                {user.name.charAt(0)}
+                              </div>
+                              {user.name}
+                              {localEvent.assignees.includes(user.name) && (
+                                <Check className="ml-auto h-3 w-3 text-primary" />
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

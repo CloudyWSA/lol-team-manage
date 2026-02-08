@@ -11,8 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Upload, FileType, Check, Loader2 } from "lucide-react"
-import { performOCR } from "@/lib/utils/ocr"
+import { Upload, Check, Video, Link as LinkIcon } from "lucide-react"
 import { toast } from "sonner"
 
 interface ScrimMediaUploadModalProps {
@@ -23,8 +22,7 @@ interface ScrimMediaUploadModalProps {
 
 export function ScrimMediaUploadModal({ isOpen, onClose, onUpload }: ScrimMediaUploadModalProps) {
   const [file, setFile] = useState<File | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [ocrResult, setOcrResult] = useState<string | null>(null)
+  const [mediaUrl, setMediaUrl] = useState("")
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -32,79 +30,71 @@ export function ScrimMediaUploadModal({ isOpen, onClose, onUpload }: ScrimMediaU
     }
   }
 
-  const handleProcessOCR = async () => {
-    if (!file) return
-    setIsProcessing(true)
-    try {
-      // In a real app, we'd upload to storage first. 
-      // For this reproduction, we'll simulate processing a local URL
-      const imageUrl = URL.createObjectURL(file)
-      const text = await performOCR(imageUrl)
-      setOcrResult(text)
-      toast.success("OCR concluído!")
-    } catch (error) {
-      toast.error("Erro ao processar imagem")
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
   const handleConfirm = () => {
-    onUpload({ file, ocrResult })
+    if (!file && !mediaUrl) {
+      toast.error("Selecione um arquivo ou insira um link")
+      return
+    }
+    onUpload({ file, url: mediaUrl })
+    toast.success("Mídia adicionada com sucesso!")
     onClose()
+    setFile(null)
+    setMediaUrl("")
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload de Mídia / Screenshot</DialogTitle>
+          <DialogTitle>Adicionar Mídia (VODs & POVs)</DialogTitle>
           <DialogDescription>
-            Faça upload de screenshots de placar ou links de VODs.
+            Faça upload de vídeos, fotos ou insira links externos (YouTube, Twitch, etc).
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 py-4">
-          <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 bg-muted/20">
-            <Upload className="h-8 w-8 mb-2 text-primary" />
+        <div className="space-y-6 py-4">
+          <div className="space-y-4">
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Link Externo</Label>
+            <div className="relative">
+              <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="https://youtube.com/watch?v=..." 
+                className="pl-9 bg-muted/20"
+                value={mediaUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMediaUrl(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/50" />
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold">
+              <span className="bg-background px-2 text-muted-foreground tracking-widest">ou upload de arquivo</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 bg-muted/10 hover:bg-muted/20 transition-colors border-border/50">
+            <Upload className="h-8 w-8 mb-2 text-primary/50" />
             <Label htmlFor="file-upload" className="cursor-pointer text-sm font-medium hover:text-primary transition-colors">
-              Clique para selecionar ou arraste
+              {file ? file.name : "Clique para selecionar arquivo"}
             </Label>
+            <p className="text-[10px] text-muted-foreground mt-1">MP4, MOV, JPG, PNG (Max 50MB)</p>
             <Input 
               id="file-upload" 
               type="file" 
               className="hidden" 
               onChange={handleFileChange} 
-              accept="image/*"
+              accept="video/*,image/*"
             />
-            {file && <p className="mt-2 text-xs font-mono">{file.name}</p>}
           </div>
-
-          {file && !ocrResult && (
-            <Button 
-              className="w-full" 
-              onClick={handleProcessOCR} 
-              disabled={isProcessing}
-            >
-              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileType className="mr-2 h-4 w-4" />}
-              Analisar Placar com OCR
-            </Button>
-          )}
-
-          {ocrResult && (
-            <div className="rounded-lg border border-border/50 bg-muted/50 p-3">
-              <p className="text-[10px] font-black uppercase text-primary mb-2">Resultado da Análise</p>
-              <pre className="text-[10px] max-h-32 overflow-y-auto font-mono whitespace-pre-wrap">
-                {ocrResult}
-              </pre>
-            </div>
-          )}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={!file && !ocrResult}>
-            <Check className="mr-2 h-4 w-4" /> Salvar
+          <Button onClick={handleConfirm} disabled={!file && !mediaUrl.trim()} className="bg-primary hover:bg-primary/90">
+            <Check className="mr-2 h-4 w-4" /> Adicionar Mídia
           </Button>
         </div>
       </DialogContent>

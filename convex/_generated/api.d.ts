@@ -10,6 +10,7 @@
 
 import type * as agenda from "../agenda.js";
 import type * as analytics from "../analytics.js";
+import type * as appointments from "../appointments.js";
 import type * as dashboard from "../dashboard.js";
 import type * as health from "../health.js";
 import type * as invitations from "../invitations.js";
@@ -17,8 +18,10 @@ import type * as matches from "../matches.js";
 import type * as media from "../media.js";
 import type * as riotApi from "../riotApi.js";
 import type * as scouting from "../scouting.js";
+import type * as scrimNotes from "../scrimNotes.js";
 import type * as scrims from "../scrims.js";
 import type * as seed from "../seed.js";
+import type * as seedAnalytics from "../seedAnalytics.js";
 import type * as tasks from "../tasks.js";
 import type * as teams from "../teams.js";
 import type * as users from "../users.js";
@@ -32,6 +35,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agenda: typeof agenda;
   analytics: typeof analytics;
+  appointments: typeof appointments;
   dashboard: typeof dashboard;
   health: typeof health;
   invitations: typeof invitations;
@@ -39,8 +43,10 @@ declare const fullApi: ApiFromModules<{
   media: typeof media;
   riotApi: typeof riotApi;
   scouting: typeof scouting;
+  scrimNotes: typeof scrimNotes;
   scrims: typeof scrims;
   seed: typeof seed;
+  seedAnalytics: typeof seedAnalytics;
   tasks: typeof tasks;
   teams: typeof teams;
   users: typeof users;

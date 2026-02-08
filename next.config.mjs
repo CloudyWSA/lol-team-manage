@@ -17,6 +17,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'fearless-raccoon-603.convex.cloud',
+        port: '',
+        pathname: '/api/storage/**',
+      },
     ],
   },
 }

@@ -49,6 +49,8 @@ export default function StaffAgendaPage() {
   // Convex Queries & Mutations
   const rawEvents = useQuery(api.agenda.listAllForTeam, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
   const rawAppointments = useQuery((api as any).appointments.listAppointments, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  const teamUsers = useQuery(api.users.listByTeam, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  
   const createEventMutation = useMutation(api.agenda.createEvent)
   const updateEventMutation = useMutation(api.agenda.updateEvent)
   const deleteEventMutation = useMutation(api.agenda.deleteEvent)
@@ -153,6 +155,7 @@ export default function StaffAgendaPage() {
       id: updatedEvent.id as Id<"agendaEvents">,
       title: updatedEvent.title,
       status: updatedEvent.status as "Confirmado" | "Pendente" | "Cancelado",
+      assignees: updatedEvent.assignees,
     })
   }
 
@@ -407,6 +410,7 @@ export default function StaffAgendaPage() {
         onClose={() => setIsSheetOpen(false)}
         onUpdate={handleUpdateEvent}
         onDelete={handleDeleteEvent}
+        teamUsers={teamUsers}
       />
     </AppShell>
   )

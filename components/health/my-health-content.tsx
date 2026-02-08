@@ -205,6 +205,18 @@ export function MyHealthContent() {
   const [activeTab, setActiveTab] = useState("overview")
   const [historyPeriod, setHistoryPeriod] = useState("14")
   const today = new Date().toLocaleDateString("pt-BR")
+  
+  // Mood form state
+  const [moodScore, setMoodScore] = useState<number>(3)
+  const [moodEnergy, setMoodEnergy] = useState<number>(3)
+  const [moodStress, setMoodStress] = useState<number>(2)
+  
+  // Sleep form state
+  const [sleepQuality, setSleepQuality] = useState<number>(80)
+  
+  // Food form state
+  const [mealType, setMealType] = useState<string>("breakfast")
+
 
   const profile = useQuery(api.health.getProfile, user ? { userId: user.id as Id<"users"> } : "skip")
   const record = useQuery(api.health.getRecord, user ? { userId: user.id as Id<"users">, date: today } : "skip")
@@ -243,7 +255,6 @@ export function MyHealthContent() {
     { id: "sleep", label: "Sono", icon: Moon },
     { id: "food", label: "Alimentação", icon: Utensils },
     { id: "mood", label: "Mental", icon: Brain },
-    { id: "history", label: "Histórico", icon: History },
     { id: "appointments", label: "Consultas", icon: Calendar },
   ]
 
@@ -355,41 +366,73 @@ export function MyHealthContent() {
       )}
 
       {activeTab === "sleep" && (
-        <Card className="stat-card border-border/50 max-w-2xl mx-auto rounded-[2rem]">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold tracking-tight">Registro de Recuperação</CardTitle>
-            <CardDescription>Otimize seu ciclo circadiano para máxima performance</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8 p-8">
-            <div className="space-y-4">
-              <Label className="text-sm font-bold uppercase tracking-widest opacity-60">Horas Reais de Sono</Label>
-              <div className="flex items-center gap-4">
-                <Input 
-                  type="number" 
-                  step="0.5"
-                  defaultValue={record?.sleep?.hours || 8}
-                  id="sleep-hours"
-                  className="h-14 text-2xl font-black bg-muted/20 border-border/40 rounded-2xl px-6"
-                />
-                <span className="text-sm font-bold uppercase tracking-widest opacity-40">Horas</span>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="stat-card border-border/50 lg:col-span-1 rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="font-bold tracking-tight">Registro de Sono</CardTitle>
+              <CardDescription>Otimize seu ciclo circadiano para máxima performance</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest opacity-60">Horas de Sono</Label>
+                <div className="flex items-center gap-3">
+                  <Input 
+                    type="number" 
+                    step="0.5"
+                    defaultValue={record?.sleep?.hours || 8}
+                    id="sleep-hours"
+                    className="h-12 text-lg font-bold bg-muted/20 border-border/40 rounded-xl px-4"
+                  />
+                  <span className="text-xs font-bold uppercase tracking-widest opacity-40">h</span>
+                </div>
               </div>
-            </div>
-            <div className="space-y-4">
-              <Label className="text-sm font-bold uppercase tracking-widest opacity-60">Qualidade Percebida (0-100%)</Label>
-              <Input type="range" min="0" max="100" defaultValue={record?.sleep?.quality || 80} id="sleep-quality" className="h-2" />
-            </div>
-            <Button className="w-full h-14 text-lg font-black uppercase tracking-widest invokers-glow rounded-2xl" onClick={async () => {
-              const hours = parseFloat((document.getElementById('sleep-hours') as HTMLInputElement).value)
-              const quality = parseInt((document.getElementById('sleep-quality') as HTMLInputElement).value)
-               await updateRecord({
-                userId: user!.id as Id<"users">,
-                date: today,
-                sleep: { hours, quality, notes: "" }
-              })
-              setActiveTab("overview")
-            }}>Processar Dados de Sono</Button>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-widest opacity-60">Qualidade</Label>
+                  <span className="text-lg font-black text-primary">{sleepQuality}%</span>
+                </div>
+                <Input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={sleepQuality} 
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSleepQuality(parseInt(e.target.value))}
+                  className="h-2" 
+                />
+              </div>
+              <Button className="w-full h-12 font-bold rounded-xl" onClick={async () => {
+                const hours = parseFloat((document.getElementById('sleep-hours') as HTMLInputElement).value)
+                await updateRecord({
+                  userId: user!.id as Id<"users">,
+                  date: today,
+                  sleep: { hours, quality: sleepQuality }
+                })
+              }}>Registrar Dia</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card border-border/50 lg:col-span-2 rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="font-bold tracking-tight">Histórico Recente</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {allHistory?.slice(0, 7).map((rec) => (
+                <div key={rec._id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-chart-2/10 text-chart-2">
+                      <Moon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold tracking-tight">{rec.sleep?.hours || 0}h de sono</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-medium">{rec.date} • Qualidade: {rec.sleep?.quality || 0}%</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 opacity-20" />
+                </div>
+              )) || <div className="p-12 text-center opacity-30 flex flex-col items-center gap-2"><Moon className="h-8 w-8" /><span className="text-xs font-black tracking-widest">NENHUM REGISTRO</span></div>}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {activeTab === "food" && (
@@ -402,7 +445,7 @@ export function MyHealthContent() {
             <CardContent className="space-y-5">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest opacity-60">Tipo</Label>
-                <MealTypeSelector value="breakfast" onChange={() => {}} />
+                <MealTypeSelector value={mealType} onChange={setMealType} />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest opacity-60">Refeição</Label>
@@ -459,66 +502,121 @@ export function MyHealthContent() {
       )}
 
       {activeTab === "mood" && (
-        <Card className="stat-card border-border/50 max-w-2xl mx-auto rounded-[2rem]">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold tracking-tight">Dashboard Mental</CardTitle>
-            <CardDescription>O equilíbrio psicológico é a fundação da tomada de decisão</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-10 p-8">
-            <MoodLevelSelector
-              label="Foco & Reflexo"
-              description="Nível de prontidão cognitiva hoje"
-              levels={5}
-              value={record?.mood?.score}
-              onChange={async (val: number) => {
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="stat-card border-border/50 lg:col-span-1 rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="font-bold tracking-tight">Registro Mental</CardTitle>
+              <CardDescription>O equilíbrio psicológico é a fundação da tomada de decisão</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <MoodLevelSelector
+                label="Foco & Reflexo"
+                description="Nível de prontidão cognitiva hoje"
+                levels={5}
+                value={moodScore}
+                onChange={(val: number) => setMoodScore(val)}
+              />
+              <MoodLevelSelector
+                label="Energia"
+                description="Nível de disposição física"
+                levels={5}
+                value={moodEnergy}
+                onChange={(val: number) => setMoodEnergy(val)}
+              />
+              <MoodLevelSelector
+                label="Estresse"
+                description="Nível de tensão (1=baixo, 5=alto)"
+                levels={5}
+                value={moodStress}
+                onChange={(val: number) => setMoodStress(val)}
+              />
+              <Button className="w-full h-12 font-bold rounded-xl" onClick={async () => {
                 await updateRecord({
                   userId: user!.id as Id<"users">,
                   date: today,
-                  mood: { score: val, energy: 3, stress: 2, notes: "" }
+                  mood: { 
+                    score: moodScore, 
+                    energy: moodEnergy, 
+                    stress: moodStress 
+                  }
                 })
-              }}
-            />
-            <div className="p-6 rounded-3xl bg-primary/5 border border-primary/20 space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-widest text-primary">Insight Adaptativo</h4>
-              <p className="text-sm text-primary/80 leading-relaxed font-medium">
-                {record?.mood?.score ? (
-                  record.mood.score >= 4 
-                  ? "Sua performance cognitiva está em pico. Excelente momento para sessões de macro estratégia ou treinos mecânicos intensos."
-                  : "Nível de prontidão estável. Foque em manter a rotina e evite over-thinking durante as partidas de hoje."
-                ) : "Registre seu estado mental para receber recomendações de treino customizadas."}
-              </p>
-            </div>
-            <Button className="w-full h-14 text-lg font-black uppercase tracking-widest invokers-glow rounded-2xl" onClick={() => setActiveTab("overview")}>Concluir Diagnóstico</Button>
-          </CardContent>
-        </Card>
+              }}>Registrar Dia</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card border-border/50 lg:col-span-2 rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="font-bold tracking-tight">Insight & Histórico</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-widest text-primary">Insight Adaptativo</h4>
+                <p className="text-sm text-primary/80 leading-relaxed font-medium">
+                  {record?.mood?.score ? (
+                    record.mood.score >= 4 
+                    ? "Sua performance cognitiva está em pico. Excelente momento para sessões de macro estratégia ou treinos mecânicos intensos."
+                    : "Nível de prontidão estável. Foque em manter a rotina e evite over-thinking durante as partidas de hoje."
+                  ) : "Registre seu estado mental para receber recomendações de treino customizadas."}
+                </p>
+              </div>
+              <div className="space-y-3">
+                {allHistory?.slice(0, 5).filter(rec => rec.mood).map((rec) => (
+                  <div key={rec._id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-chart-4/10 text-chart-4">
+                        <Brain className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold tracking-tight">Foco: {rec.mood?.score || 0} • Energia: {rec.mood?.energy || 0}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium">{rec.date} • Estresse: {rec.mood?.stress || 0}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 opacity-20" />
+                  </div>
+                )) || <div className="p-12 text-center opacity-30 flex flex-col items-center gap-2"><Brain className="h-8 w-8" /><span className="text-xs font-black tracking-widest">NENHUM REGISTRO</span></div>}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {activeTab === "history" && (
+      {activeTab === "appointments" && (
         <Card className="stat-card border-border/50 rounded-[2rem]">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="font-bold tracking-tight">Matriz de Tendência</CardTitle>
-              <CardDescription>Análise histórica dos pilares de performance</CardDescription>
-            </div>
+          <CardHeader>
+            <CardTitle className="font-bold tracking-tight">Minhas Consultas</CardTitle>
+            <CardDescription>Consultas agendadas para você</CardDescription>
           </CardHeader>
-          <CardContent className="h-[450px] p-8">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={allHistory || []}>
-                <defs>
-                  <linearGradient id="colorSleep" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="oklch(var(--chart-2))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="oklch(var(--chart-2))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(var(--border)/0.2)" />
-                <XAxis dataKey="date" stroke="oklch(var(--muted-foreground)/0.5)" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(val) => val.split('/')[0]} />
-                <YAxis stroke="oklch(var(--muted-foreground)/0.5)" fontSize={10} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'oklch(var(--background))', borderColor: 'oklch(var(--border))', borderRadius: '16px', border: '2px solid oklch(var(--border)/0.5)', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="sleep.hours" name="Sono (h)" stroke="oklch(var(--chart-2))" strokeWidth={4} fillOpacity={1} fill="url(#colorSleep)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <CardContent className="space-y-3">
+            {appointments?.length ? appointments.map((app) => (
+              <div key={app._id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold tracking-tight">{app.title}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-medium">
+                      {app.date} às {app.time} • Agendado por: {app.professional}
+                    </p>
+                  </div>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] uppercase font-black ${
+                    app.status === 'confirmado' ? 'border-green-500/30 text-green-400' :
+                    app.status === 'cancelado' ? 'border-red-500/30 text-red-400' :
+                    'border-primary/30 text-primary'
+                  }`}
+                >
+                  {app.status}
+                </Badge>
+              </div>
+            )) : (
+              <div className="p-12 text-center opacity-30 flex flex-col items-center gap-2">
+                <Calendar className="h-8 w-8" />
+                <span className="text-xs font-black tracking-widest">NENHUMA CONSULTA AGENDADA</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

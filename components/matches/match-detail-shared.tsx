@@ -59,19 +59,19 @@ export function MatchTeamRoster({ team, isBlue, version }: { team: any, isBlue: 
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Gold</p>
-            <p className="text-lg font-bold">{(team.stats.gold / 1000).toFixed(1)}k</p>
+            <p className="text-lg font-bold">{team.stats ? (team.stats.gold / 1000).toFixed(1) : "0.0"}k</p>
           </div>
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-xl shadow-lg ${team.won ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"}`}>
-            {team.stats.kills}
+            {team.stats?.kills || 0}
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="flex items-center justify-around py-3 bg-muted/20 border-y border-border/50">
-          <MatchObjectiveStat label="Torres" value={team.stats.towers} icon={Shield} />
-          <MatchObjectiveStat label="Dragoes" value={team.stats.dragons} icon={Ghost} />
-          <MatchObjectiveStat label="Barons" value={team.stats.barons} icon={Zap} />
-          <MatchObjectiveStat label="Grubs" value={team.stats.grubs} icon={Bug} />
+          <MatchObjectiveStat label="Torres" value={team.stats?.towers || 0} icon={Shield} />
+          <MatchObjectiveStat label="Dragoes" value={team.stats?.dragons || 0} icon={Ghost} />
+          <MatchObjectiveStat label="Barons" value={team.stats?.barons || 0} icon={Zap} />
+          <MatchObjectiveStat label="Grubs" value={team.stats?.grubs || 0} icon={Bug} />
         </div>
         <div className="divide-y divide-border/50">
           {team.players.map((player: any, idx: number) => (
@@ -84,6 +84,10 @@ export function MatchTeamRoster({ team, isBlue, version }: { team: any, isBlue: 
 }
 
 export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlue: boolean, version: string }) {
+  if (!player) return null;
+
+  const items = player.items || [];
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -94,10 +98,10 @@ export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlu
               {player.runes && (
                 <>
                   <div className="relative h-6 w-6 rounded-full bg-black/40 border border-white/5 p-0.5">
-                    <Image src={getRuneIcon(player.runes.keystone)} alt="keystone" fill className="object-contain" />
+                    {getRuneIcon(player.runes.keystone) && <Image src={getRuneIcon(player.runes.keystone)} alt="keystone" fill className="object-contain" />}
                   </div>
                   <div className="relative h-4 w-4 rounded-full bg-black/40 border border-white/5 p-0.5 ml-1">
-                    <Image src={getRuneIcon(player.runes.style)} alt="style" fill className="object-contain opacity-80" />
+                    {getRuneIcon(player.runes.style) && <Image src={getRuneIcon(player.runes.style)} alt="style" fill className="object-contain opacity-80" />}
                   </div>
                 </>
               )}
@@ -105,13 +109,15 @@ export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlu
 
             {/* Champ Icon */}
             <div className={`relative h-11 w-11 overflow-hidden rounded-xl bg-muted border-2 ${isBlue ? "border-blue-500/30" : "border-red-500/30"}`}>
-              <Image 
-                src={getChampionIcon(player.champion, version)} 
-                alt={player.champion} 
-                fill 
-                className="object-cover transition-transform group-hover:scale-110"
-                sizes="44px"
-              />
+              {getChampionIcon(player.champion, version) && (
+                <Image 
+                  src={getChampionIcon(player.champion, version)} 
+                  alt={player.champion || "Champion"} 
+                  fill 
+                  className="object-cover transition-transform group-hover:scale-110"
+                  sizes="44px"
+                />
+              )}
             </div>
 
             {/* Name/Role */}
@@ -126,34 +132,35 @@ export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlu
             <div className="hidden lg:flex items-center gap-6 px-4">
               <div className="text-right">
                 <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase leading-none mb-1">Dano</p>
-                <p className="text-xs font-mono font-bold">{(player.dmg / 1000).toFixed(1)}k</p>
+                <p className="text-xs font-mono font-bold">{( (player.dmg || 0) / 1000).toFixed(1)}k</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase leading-none mb-1">Visão</p>
-                <p className="text-xs font-mono font-bold">{player.vision}</p>
+                <p className="text-xs font-mono font-bold">{player.vision || 0}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase leading-none mb-1">Ouro</p>
-                <p className="text-xs font-mono font-bold">{(player.gold / 1000).toFixed(1)}k</p>
+                <p className="text-xs font-mono font-bold">{( (player.gold || 0) / 1000).toFixed(1)}k</p>
               </div>
             </div>
 
             {/* KDA & CS */}
             <div className="hidden sm:flex flex-col items-end min-w-[60px]">
-              <p className="text-xs font-black tracking-tight">{player.kda}</p>
-              <p className="text-[9px] text-muted-foreground font-bold">{player.cs} CS</p>
+              <p className="text-xs font-black tracking-tight">{player.kda || "0/0/0"}</p>
+              <p className="text-[9px] text-muted-foreground font-bold">{player.cs || 0} CS</p>
             </div>
 
             {/* Items Build */}
             <div className="flex items-center gap-1">
               <div className="flex items-center gap-0.5">
                 {[0, 1, 2, 3, 4, 5].map((i) => {
-                  const item = player.items[i];
+                  const item = items[i];
+                  const itemIcon = item ? getItemIcon(item.id || item, version) : null;
                   return (
                     <div key={i} className="relative h-7 w-7 rounded-md bg-muted/40 border border-white/5 overflow-hidden shadow-inner">
-                      {item && (
+                      {itemIcon && (
                         <Image 
-                          src={getItemIcon(item.id, version)} 
+                          src={itemIcon} 
                           alt="item" 
                           fill 
                           className="object-cover"
@@ -167,9 +174,9 @@ export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlu
               {/* Trinket Separator */}
               <div className="w-px h-5 bg-border/40 mx-0.5" />
               <div className="relative h-7 w-7 rounded-md bg-muted/40 border border-white/5 overflow-hidden ring-1 ring-primary/20">
-                {player.trinket && (
+                {player.trinket && getItemIcon(player.trinket.id || player.trinket, version) && (
                   <Image 
-                    src={getItemIcon(player.trinket.id, version)} 
+                    src={getItemIcon(player.trinket.id || player.trinket, version) as string} 
                     alt="trinket" 
                     fill 
                     className="object-cover"
@@ -187,33 +194,40 @@ export function MatchPlayerRow({ player, isBlue, version }: { player: any, isBlu
 }
 
 export function MatchPlayerDeepDive({ player, isBlue, version }: { player: any, isBlue: boolean, version: string }) {
+  if (!player) return null;
+  const items = player.items || [];
+
   return (
     <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden border-border/50 bg-background/95 backdrop-blur-xl invokers-glow">
       <DialogHeader className="sr-only">
-        <DialogTitle>Detalhes de {player.name}</DialogTitle>
+        <DialogTitle>Detalhes de {player.name || "Jogador"}</DialogTitle>
         <DialogDescription>Performance detalhada do jogador na partida</DialogDescription>
       </DialogHeader>
       <div className="relative h-32 w-full overflow-hidden">
-        <Image 
-          src={getChampionSplash(player.champion)} 
-          alt={player.champion} 
-          fill 
-          className="object-cover object-top opacity-50"
-        />
+        {getChampionSplash(player.champion) && (
+          <Image 
+            src={getChampionSplash(player.champion)} 
+            alt={player.champion || "Champion"} 
+            fill 
+            className="object-cover object-top opacity-50"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
         <div className="absolute bottom-4 left-6 flex items-end gap-6">
           <div className={`relative h-20 w-20 rounded-2xl overflow-hidden border-4 ${isBlue ? "border-blue-500" : "border-red-500"} shadow-2xl`}>
-            <Image 
-              src={getChampionIcon(player.champion, version)} 
-              alt={player.champion} 
-              fill 
-              className="object-cover"
-            />
+            {getChampionIcon(player.champion, version) && (
+              <Image 
+                src={getChampionIcon(player.champion, version)} 
+                alt={player.champion || "Champion"} 
+                fill 
+                className="object-cover"
+              />
+            )}
           </div>
           <div>
-            <h2 className="text-3xl font-black tracking-tight">{player.name}</h2>
+            <h2 className="text-3xl font-black tracking-tight">{player.name || "Desconhecido"}</h2>
             <div className="flex items-center gap-2">
-              <p className="font-bold text-primary uppercase text-xs tracking-widest">{player.champion} • {player.role}</p>
+              <p className="font-bold text-primary uppercase text-xs tracking-widest">{player.champion || "Campeão"} • {player.role || "Role"}</p>
               {player.runes && (
                 <div className="flex items-center gap-1.5 ml-2 bg-black/20 px-2 py-0.5 rounded-full border border-white/5">
                   <div className="relative h-4 w-4">
@@ -235,9 +249,9 @@ export function MatchPlayerDeepDive({ player, isBlue, version }: { player: any, 
           icon={Swords} 
           color="text-red-500"
           stats={[
-            { label: "Dano Causado", value: player.dmg.toLocaleString() },
-            { label: "Kill Participation", value: "72%" },
-            { label: "Dano por Minuto", value: Math.floor(player.dmg / 28).toLocaleString() },
+            { label: "Dano Causado", value: (player.dmg || 0).toLocaleString() },
+            { label: "Kill Participation", value: player.kp || "0%" },
+            { label: "Dano por Minuto", value: Math.floor((player.dmg || 0) / (player.duration || 30)).toLocaleString() },
           ]}
         />
         <MatchStatsSection 
@@ -245,9 +259,9 @@ export function MatchPlayerDeepDive({ player, isBlue, version }: { player: any, 
           icon={Coins} 
           color="text-yellow-500"
           stats={[
-            { label: "Ouro Total", value: player.gold.toLocaleString() },
-            { label: "CS Total", value: player.cs },
-            { label: "CS por Minuto", value: (player.cs / 28.7).toFixed(1) },
+            { label: "Ouro Total", value: (player.gold || 0).toLocaleString() },
+            { label: "CS Total", value: player.cs || 0 },
+            { label: "CS por Minuto", value: ((player.cs || 0) / (player.duration || 30)).toFixed(1) },
           ]}
         />
         <MatchStatsSection 
@@ -255,9 +269,9 @@ export function MatchPlayerDeepDive({ player, isBlue, version }: { player: any, 
           icon={Target} 
           color="text-blue-500"
           stats={[
-            { label: "Vision Score", value: player.vision },
-            { label: "Wards Colocadas", value: Math.floor(player.vision * 0.6) },
-            { label: "Wards Destruidas", value: Math.floor(player.vision * 0.2) },
+            { label: "Vision Score", value: player.vision || 0 },
+            { label: "Wards Colocadas", value: Math.floor((player.vision || 0) * 0.6) },
+            { label: "Wards Destruidas", value: Math.floor((player.vision || 0) * 0.2) },
           ]}
         />
         <div className="p-4 rounded-2xl bg-muted/20 border border-border/50">
@@ -266,16 +280,22 @@ export function MatchPlayerDeepDive({ player, isBlue, version }: { player: any, 
             <h4 className="text-[10px] font-black tracking-widest uppercase">Build Final</h4>
           </div>
           <div className="flex gap-2">
-            {player.items.map((item: any, i: number) => (
-              <div key={i} className="relative h-10 w-10 rounded-lg bg-muted border border-white/5 overflow-hidden group/item">
-                <Image 
-                  src={getItemIcon(item.id, version)} 
-                  alt="item" 
-                  fill 
-                  className="object-cover"
-                />
-              </div>
-            ))}
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              const item = items[i];
+              const itemIcon = item ? getItemIcon(item.id || item, version) : null;
+              return (
+                <div key={i} className="relative h-10 w-10 rounded-lg bg-muted border border-white/5 overflow-hidden group/item">
+                  {itemIcon && (
+                    <Image 
+                      src={itemIcon} 
+                      alt="item" 
+                      fill 
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

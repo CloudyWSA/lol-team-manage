@@ -97,6 +97,13 @@ export const updateOpponentProfile = mutation({
     await ctx.db.patch(args.id, { opponentProfile: args.opponentProfile });
   },
 });
+
+export const updateNotes = mutation({
+  args: { id: v.id("scrims"), notes: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, { notes: args.notes });
+  },
+});
 export const addDetailedGame = mutation({
   args: {
     scrimId: v.id("scrims"),
