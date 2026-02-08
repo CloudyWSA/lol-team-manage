@@ -35,8 +35,8 @@ export const getMe = query({
 
 export const login = action({
   args: { email: v.string(), password: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.runQuery(api.users.getUserByEmailSecrets, { email: args.email });
+  handler: async (ctx, args): Promise<any> => {
+    const user: any = await ctx.runQuery(api.users.getUserByEmailSecrets, { email: args.email });
     
     if (!user) return null;
     if (!user.password) {
@@ -74,7 +74,7 @@ export const register = action({
     inviteCode: v.optional(v.string()),
     position: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
      const hashedPassword = await hashPassword(args.password);
      
      // Call internal mutation
@@ -170,7 +170,7 @@ export const listByTeam = query({
 
     const users = await ctx.db
       .query("users")
-      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId as Id<"teams">))
       .collect();
 
     // Enhance users with latest health record if needed for the UI,

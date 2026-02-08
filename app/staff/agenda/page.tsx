@@ -48,6 +48,7 @@ export default function StaffAgendaPage() {
 
   // Convex Queries & Mutations
   const rawEvents = useQuery(api.agenda.listAllForTeam, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  const rawAppointments = useQuery((api as any).appointments.listAppointments, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
   const createEventMutation = useMutation(api.agenda.createEvent)
   const updateEventMutation = useMutation(api.agenda.updateEvent)
   const deleteEventMutation = useMutation(api.agenda.deleteEvent)
@@ -60,29 +61,62 @@ export default function StaffAgendaPage() {
     })
   )
 
+  // Helper to calculate end time (start + 1h)
+  const calculateEndTime = (startTime: string) => {
+    const [h, m] = startTime.split(":").map(Number)
+    const endH = (h + 1) % 24
+    return `${endH.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
+  }
+
   // Map Convex objects to AgendaEvent type
   const allEventsFlattened = useMemo(() => {
-    if (!rawEvents) return []
-    return rawEvents.map(e => ({
-      id: e._id,
-      title: e.title,
-      description: e.description,
-      startTime: e.startTime,
-      endTime: e.endTime,
-      type: e.type,
-      status: e.status,
-      location: e.location,
-      assignees: e.assignees,
-      observations: e.observations,
-      priority: e.priority,
-      date: e.date,
-    })) as AgendaEvent[]
-  }, [rawEvents])
+    const events: AgendaEvent[] = []
+    
+    if (rawEvents) {
+      rawEvents.forEach(e => {
+        events.push({
+          id: e._id,
+          title: e.title,
+          description: e.description,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          type: e.type,
+          status: e.status,
+          location: e.location,
+          assignees: e.assignees,
+          observations: e.observations,
+          priority: e.priority as any,
+          date: e.date,
+        })
+      })
+    }
+
+    if (rawAppointments) {
+      (rawAppointments as any[]).forEach(a => {
+        events.push({
+          id: a._id,
+          title: a.title,
+          description: a.description,
+          startTime: a.time,
+          endTime: calculateEndTime(a.time),
+          type: a.type, // e.g., "Psicólogo"
+          status: a.status.charAt(0).toUpperCase() + a.status.slice(1), // Capitalize
+          location: "Consultório/Online",
+          assignees: [a.professional],
+          observations: a.observations,
+          priority: "Media",
+          date: a.date,
+        })
+      })
+    }
+
+    return events.sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }, [rawEvents, rawAppointments])
 
   // Group events by day (for display dots)
   const groupedEvents = useMemo(() => {
     const groups: Record<number, AgendaEvent[]> = {}
-    allEventsFlattened.forEach(e => {
+    allEventsFlattened.forEach((e: AgendaEvent) => {
       // Extract day from date string "2026-02-04"
       const day = parseInt(e.date?.split("-")[2] || "0")
       if (day > 0) {
@@ -96,12 +130,12 @@ export default function StaffAgendaPage() {
   const events = useMemo(() => groupedEvents[selectedDay] || [], [groupedEvents, selectedDay])
   
   const selectedEvent = useMemo(() => {
-    return allEventsFlattened.find(e => e.id === selectedEventId) || null
+    return allEventsFlattened.find((e: AgendaEvent) => e.id === selectedEventId) || null
   }, [allEventsFlattened, selectedEventId])
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
-    const draggedEvent = events.find(e => e.id === active.id)
+    const draggedEvent = events.find((e: AgendaEvent) => e.id === active.id)
     if (draggedEvent) setActiveEvent(draggedEvent)
   }
 
@@ -317,7 +351,7 @@ export default function StaffAgendaPage() {
                               setViewMode("day")
                             }}>
                               {dayEvents.length > 0 ? (
-                                dayEvents.slice(0, 3).map(e => (
+                                dayEvents.slice(0, 3).map((e: AgendaEvent) => (
                                   <div key={`week-e-${e.id}`} className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 shadow-inner flex items-center justify-between group">
                                     <div className="flex items-center gap-4">
                                       <div className="w-1.5 h-8 rounded-full bg-primary/20 group-hover:bg-primary transition-all scale-y-75 group-hover:scale-y-100" />
@@ -353,7 +387,7 @@ export default function StaffAgendaPage() {
       {typeof document !== "undefined" &&
         createPortal(
           <DragOverlay dropAnimation={{
-            sideEffects: (event) => {
+            sideEffects: (event: any) => {
               // @ts-ignore
               event.active.node.style.opacity = "0.5"
             }

@@ -83,8 +83,8 @@ export function TeamHealthContent() {
   }, [])
 
   const teamData = useQuery(api.health.listTeamHealth, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
-  const appointments = useQuery(api.appointments.listAppointments, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
-  const createAppointment = useMutation(api.appointments.createAppointment)
+  const appointments = useQuery((api as any).appointments.listAppointments, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  const createAppointment = useMutation((api as any).appointments.createAppointment)
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false)
   const [newAppointment, setNewAppointment] = useState({
     title: "",
@@ -463,7 +463,7 @@ export function TeamHealthContent() {
                     )}
                   </div>
                   <div className="flex gap-2 overflow-x-auto overflow-y-visible pb-2 pt-3 scrollbar-thin relative z-10">
-                    {historicalDates.map((dateItem, index) => (
+                    {historicalDates.map((dateItem: any, index: number) => (
                       <button
                         key={dateItem.date}
                         onClick={() => {
@@ -520,7 +520,7 @@ export function TeamHealthContent() {
                       <div className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-primary" />
                         <span className="text-muted-foreground">
-                          {historicalDates.find(d => d.date === selectedDate)?.label}
+                          {historicalDates.find((d: any) => d.date === selectedDate)?.label}
                         </span>
                       </div>
                       <ArrowLeftRight className="h-3 w-3 text-muted-foreground" />
@@ -539,7 +539,7 @@ export function TeamHealthContent() {
 
           {/* Player Cards */}
           <div className="grid gap-6">
-            {playersHealth.map((player) => {
+            {playersHealth.map((player: any) => {
               const isExpanded = expandedPlayers.has(player.id)
               const currentData = getPlayerDataForDate(player.id, selectedDate)
               const compareData = isComparisonMode ? getPlayerDataForDate(player.id, comparisonDate) : null
@@ -746,7 +746,7 @@ export function TeamHealthContent() {
                           <span className="font-medium">Alertas</span>
                         </div>
                         <ul className="mt-2 space-y-1">
-                          {player.alerts.map((alert, i) => (
+                          {player.alerts.map((alert: string, i: number) => (
                             <li key={i} className="text-sm text-yellow-500/80">• {alert}</li>
                           ))}
                         </ul>
@@ -761,22 +761,22 @@ export function TeamHealthContent() {
                           <span className="font-medium">Tendência dos Últimos 7 Dias</span>
                         </div>
                         <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={trendData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
-                              <XAxis 
+                          <ResponsiveContainerAny width="100%" height="100%">
+                            <LineChartAny data={trendData}>
+                              <CartesianGridAny strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
+                              <XAxisAny 
                                 dataKey="date" 
                                 stroke="oklch(0.65 0.02 285)" 
                                 fontSize={12}
                                 tickLine={false}
                               />
-                              <YAxis 
+                              <YAxisAny 
                                 stroke="oklch(0.65 0.02 285)" 
                                 fontSize={12}
                                 tickLine={false}
                                 domain={[0, 'auto']}
                               />
-                              <Tooltip 
+                              <TooltipAny 
                                 contentStyle={{
                                   backgroundColor: "oklch(0.18 0.03 285)",
                                   border: "1px solid oklch(0.28 0.04 285)",
@@ -784,8 +784,8 @@ export function TeamHealthContent() {
                                 }}
                                 labelStyle={{ color: "oklch(0.95 0.01 285)" }}
                               />
-                              <Legend />
-                              <Line
+                              <LegendAny />
+                              <LineAny
                                 type="monotone"
                                 dataKey="sono"
                                 name="Sono (h)"
@@ -793,7 +793,7 @@ export function TeamHealthContent() {
                                 strokeWidth={2}
                                 dot={{ fill: "oklch(0.55 0.18 300)", strokeWidth: 0 }}
                               />
-                              <Line
+                              <LineAny
                                 type="monotone"
                                 dataKey="humor"
                                 name="Humor"
@@ -801,7 +801,7 @@ export function TeamHealthContent() {
                                 strokeWidth={2}
                                 dot={{ fill: "oklch(0.6 0.16 320)", strokeWidth: 0 }}
                               />
-                              <Line
+                              <LineAny
                                 type="monotone"
                                 dataKey="energia"
                                 name="Energia"
@@ -809,7 +809,7 @@ export function TeamHealthContent() {
                                 strokeWidth={2}
                                 dot={{ fill: "oklch(0.7 0.15 270)", strokeWidth: 0 }}
                               />
-                              <Line
+                              <LineAny
                                 type="monotone"
                                 dataKey="estresse"
                                 name="Estresse"
@@ -817,8 +817,8 @@ export function TeamHealthContent() {
                                 strokeWidth={2}
                                 dot={{ fill: "oklch(0.65 0.20 25)", strokeWidth: 0 }}
                               />
-                            </LineChart>
-                          </ResponsiveContainer>
+                            </LineChartAny>
+                          </ResponsiveContainerAny>
                         </div>
                       </div>
                     )}
@@ -854,7 +854,7 @@ export function TeamHealthContent() {
                     <Input
                       placeholder="Ex: Acompanhamento Psicológico"
                       value={newAppointment.title}
-                      onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAppointment({ ...newAppointment, title: e.target.value })}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -862,7 +862,7 @@ export function TeamHealthContent() {
                       <Label>Tipo</Label>
                       <Select
                         value={newAppointment.type}
-                        onValueChange={(val) => setNewAppointment({ ...newAppointment, type: val })}
+                        onValueChange={(val: string) => setNewAppointment({ ...newAppointment, type: val as any })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -879,7 +879,7 @@ export function TeamHealthContent() {
                       <Label>Jogador</Label>
                       <Select
                         value={newAppointment.userId}
-                        onValueChange={(val) => setNewAppointment({ ...newAppointment, userId: val })}
+                        onValueChange={(val: string) => setNewAppointment({ ...newAppointment, userId: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -908,7 +908,7 @@ export function TeamHealthContent() {
                           <CalendarComponent
                             mode="single"
                             selected={newAppointment.date}
-                            onSelect={(d) => d && setNewAppointment({ ...newAppointment, date: d })}
+                            onSelect={(d: Date | undefined) => d && setNewAppointment({ ...newAppointment, date: d })}
                             initialFocus
                           />
                         </PopoverContent>
@@ -919,7 +919,7 @@ export function TeamHealthContent() {
                       <Input
                         type="time"
                         value={newAppointment.time}
-                        onChange={(e) => setNewAppointment({ ...newAppointment, time: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAppointment({ ...newAppointment, time: e.target.value })}
                       />
                     </div>
                   </div>
@@ -928,7 +928,7 @@ export function TeamHealthContent() {
                     <Textarea
                       placeholder="Detalhes sobre a sessão..."
                       value={newAppointment.description}
-                      onChange={(e) => setNewAppointment({ ...newAppointment, description: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewAppointment({ ...newAppointment, description: e.target.value })}
                     />
                   </div>
                 </div>
@@ -984,13 +984,13 @@ export function TeamHealthContent() {
             </CardHeader>
             <CardContent>
               <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={playerRadarData}>
-                    <PolarGrid stroke="oklch(0.28 0.04 285)" />
-                    <PolarAngleAxis dataKey="metric" stroke="oklch(0.65 0.02 285)" fontSize={12} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="oklch(0.65 0.02 285)" fontSize={10} />
+                <ResponsiveContainerAny width="100%" height="100%">
+                  <RadarChartAny data={playerRadarData}>
+                    <PolarGridAny stroke="oklch(0.28 0.04 285)" />
+                    <PolarAngleAxisAny dataKey="metric" stroke="oklch(0.65 0.02 285)" fontSize={12} />
+                    <PolarRadiusAxisAny angle={30} domain={[0, 100]} stroke="oklch(0.65 0.02 285)" fontSize={10} />
                     {playersHealth.map((p: any, i: number) => (
-                      <Radar
+                      <RadarAny
                         key={p.id}
                         name={p.name}
                         dataKey={p.name}
@@ -999,9 +999,9 @@ export function TeamHealthContent() {
                         fillOpacity={0.1}
                       />
                     ))}
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
+                    <LegendAny />
+                  </RadarChartAny>
+                </ResponsiveContainerAny>
               </div>
             </CardContent>
           </Card>
@@ -1014,12 +1014,12 @@ export function TeamHealthContent() {
             </CardHeader>
             <CardContent>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={playersHealth.map((p: any) => ({ name: p.name, sono: p.sleep.avg, meta: 8 }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
-                    <XAxis dataKey="name" stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} />
-                    <YAxis stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} domain={[0, 10]} />
-                    <Tooltip
+                <ResponsiveContainerAny width="100%" height="100%">
+                  <BarChartAny data={playersHealth.map((p: any) => ({ name: p.name, sono: p.sleep.avg, meta: 8 }))}>
+                    <CartesianGridAny strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
+                    <XAxisAny dataKey="name" stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} />
+                    <YAxisAny stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} domain={[0, 10]} />
+                    <TooltipAny
                       contentStyle={{
                         backgroundColor: "oklch(0.18 0.03 285)",
                         border: "1px solid oklch(0.28 0.04 285)",
@@ -1027,10 +1027,10 @@ export function TeamHealthContent() {
                       }}
                       labelStyle={{ color: "oklch(0.95 0.01 285)" }}
                     />
-                    <Bar dataKey="sono" name="Horas de sono" fill="oklch(0.55 0.18 300)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="meta" name="Meta" fill="oklch(0.28 0.04 285)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                    <BarAny dataKey="sono" name="Horas de sono" fill="oklch(0.55 0.18 300)" radius={[4, 4, 0, 0]} />
+                    <BarAny dataKey="meta" name="Meta" fill="oklch(0.28 0.04 285)" radius={[4, 4, 0, 0]} />
+                  </BarChartAny>
+                </ResponsiveContainerAny>
               </div>
             </CardContent>
           </Card>

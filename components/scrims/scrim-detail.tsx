@@ -57,6 +57,7 @@ import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 import { toast } from "sonner"
+import { ScrimMediaUploadModal } from "./scrim-media-upload-modal"
 
 const scrimDetailTabs: PageNavTab[] = [
   { id: "overview", label: "Visão Geral", icon: Eye },
@@ -74,6 +75,7 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
   const updateTrainingPlan = useMutation(api.scrims.updateTrainingPlan)
 
   const [isPlanEditing, setIsPlanEditing] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [focusDraft, setFocusDraft] = useState("")
   const [objectivesDraft, setObjectivesDraft] = useState<string[]>([])
   const [newObjective, setNewObjective] = useState("")
@@ -114,7 +116,17 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
   }
 
   const removeObjective = (index: number) => {
-    setObjectivesDraft(objectivesDraft.filter((_, i) => i !== index))
+    setObjectivesDraft(objectivesDraft.filter((_: any, i: number) => i !== index))
+  }
+
+  const handleSyncScrim = async () => {
+    // Placeholder for Riot API sync
+    toast.info("Iniciando sincronização com a Riot API...")
+    // In a real scenario, we'd call the action here
+  }
+
+  const handleMediaUpload = (data: any) => {
+    toast.success("Mídia enviada com sucesso!")
   }
 
   if (!scrim) return <div className="flex h-60 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>
@@ -250,8 +262,8 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
                         <Input
                           placeholder="Novo objetivo..."
                           value={newObjective}
-                          onChange={(e) => setNewObjective(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && addObjective()}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewObjective(e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && addObjective()}
                           className="bg-muted/50"
                         />
                         <Button onClick={addObjective} size="icon">
@@ -259,7 +271,7 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
                         </Button>
                       </div>
                       <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                        {objectivesDraft.map((obj, i) => (
+                        {objectivesDraft.map((obj: string, i: number) => (
                           <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2">
                             <span className="text-sm">{obj}</span>
                             <Button
@@ -279,7 +291,7 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
                       <Textarea
                         placeholder="Ex: Praticar transição para Baron..."
                         value={focusDraft}
-                        onChange={(e) => setFocusDraft(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFocusDraft(e.target.value)}
                         className="bg-muted/50 resize-none"
                         rows={4}
                       />
@@ -298,12 +310,17 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
             </div>
             <Card className="stat-card border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-yellow-500">
-                  <AlertCircle className="h-5 w-5" /> Perfil do Adversário
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-yellow-500">
+                    <AlertCircle className="h-5 w-5" /> Perfil do Adversário
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground italic">"Estilo de jogo agressivo no early game, focado em dives bot side."</p>
+                <Button variant="outline" className="w-full" onClick={handleSyncScrim}>
+                  <TrendingUp className="h-4 w-4 mr-2" /> Sincronizar dados Riot
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -345,7 +362,10 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl opacity-50">
             <Video className="h-10 w-10 mb-2" />
             <p className="font-bold">VODs ainda não disponíveis</p>
-            <p className="text-xs">Uploade os replays para iniciar a análise automática.</p>
+            <p className="text-xs mb-4">Uploade os replays para iniciar a análise automática.</p>
+            <Button onClick={() => setIsUploadModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Upload de Mídia
+            </Button>
           </div>
         )}
         
@@ -358,6 +378,11 @@ export function ScrimDetail({ scrimId, gameVersion }: { scrimId: string, gameVer
           </div>
         )}
       </div>
+      <ScrimMediaUploadModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)} 
+        onUpload={handleMediaUpload}
+      />
     </div>
   )
 }

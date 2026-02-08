@@ -39,6 +39,8 @@ import { api } from "@/convex/_generated/api"
 import { useAuth } from "@/lib/auth-context"
 import { Id } from "@/convex/_generated/dataModel"
 import { toast } from "sonner"
+import { ScrimAnalysisTab } from "./scrim-analysis-tab"
+import { ScrimTeamsTab } from "./scrim-teams-tab"
 
 const scrimsTabs: PageNavTab[] = [
   { id: "upcoming", label: "Próximos", icon: Calendar },
@@ -70,12 +72,12 @@ export function ScrimsContent() {
   // Convex Mutations
   const createScrim = useMutation(api.scrims.create)
 
-  const upcomingScrims = allScrims?.filter(s => s.status !== "concluido") || []
+  const upcomingScrims = allScrims?.filter((s: any) => s.status !== "concluido") || []
   const recentScrims = completedScrims || []
 
   // Stats calculation
   const totalScrims = allScrims?.length || 0
-  const wonScrims = completedScrims?.filter(s => s.won).length || 0
+  const wonScrims = completedScrims?.filter((s: any) => s.won).length || 0
   const winRate = totalScrims > 0 ? Math.round((wonScrims / (completedScrims?.length || 1)) * 100) : 0
 
   const handleCreateScrim = async () => {
@@ -145,7 +147,7 @@ export function ScrimsContent() {
                   placeholder="Nome do time" 
                   className="bg-muted/50" 
                   value={newScrim.opponent}
-                  onChange={(e) => setNewScrim({ ...newScrim, opponent: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewScrim({ ...newScrim, opponent: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -155,7 +157,7 @@ export function ScrimsContent() {
                     type="date" 
                     className="bg-muted/50" 
                     value={newScrim.date}
-                    onChange={(e) => setNewScrim({ ...newScrim, date: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewScrim({ ...newScrim, date: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -164,7 +166,7 @@ export function ScrimsContent() {
                     type="time" 
                     className="bg-muted/50" 
                     value={newScrim.time}
-                    onChange={(e) => setNewScrim({ ...newScrim, time: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewScrim({ ...newScrim, time: e.target.value })}
                   />
                 </div>
               </div>
@@ -173,7 +175,7 @@ export function ScrimsContent() {
                   <Label>Formato</Label>
                   <Select 
                     value={newScrim.format} 
-                    onValueChange={(v: any) => setNewScrim({ ...newScrim, format: v })}
+                    onValueChange={(v: string) => setNewScrim({ ...newScrim, format: v })}
                   >
                     <SelectTrigger className="bg-muted/50">
                       <SelectValue />
@@ -189,7 +191,7 @@ export function ScrimsContent() {
                   <Label>Servidor</Label>
                   <Select 
                     value={newScrim.server} 
-                    onValueChange={(v) => setNewScrim({ ...newScrim, server: v })}
+                    onValueChange={(v: any) => setNewScrim({ ...newScrim, server: v })}
                   >
                     <SelectTrigger className="bg-muted/50">
                       <SelectValue />
@@ -210,7 +212,7 @@ export function ScrimsContent() {
                   className="bg-muted/50 resize-none"
                   rows={3}
                   value={newScrim.notes}
-                  onChange={(e) => setNewScrim({ ...newScrim, notes: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewScrim({ ...newScrim, notes: e.target.value })}
                 />
               </div>
               <Button className="w-full" onClick={handleCreateScrim}>
@@ -230,7 +232,7 @@ export function ScrimsContent() {
               <p className="text-sm font-medium">Nenhum scrim agendado</p>
             </div>
           )}
-          {upcomingScrims.map((scrim) => (
+          {upcomingScrims.map((scrim: any) => (
             <Link key={scrim._id} href={`/scrims/${scrim._id}`}>
               <Card className="stat-card border-border/50 hover:border-primary/50 transition-all cursor-pointer">
                 <CardContent className="p-4">
@@ -303,7 +305,7 @@ export function ScrimsContent() {
             </div>
           )}
 
-          {recentScrims.map((scrim) => (
+          {recentScrims.map((scrim: any) => (
             <Link key={scrim._id} href={`/scrims/${scrim._id}`}>
               <Card className="stat-card border-border/50 hover:border-primary/50 transition-all cursor-pointer">
                 <CardContent className="p-4">
@@ -352,19 +354,11 @@ export function ScrimsContent() {
       )}
 
       {activeTab === "teams" && (
-        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed rounded-3xl opacity-50">
-          <Users className="h-10 w-10 mb-2" />
-          <p className="font-bold">Análise de times em desenvolvimento</p>
-          <p className="text-xs">Este módulo será populado automaticamente com base no histórico</p>
-        </div>
+        <ScrimTeamsTab />
       )}
 
       {activeTab === "analysis" && (
-        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed rounded-3xl opacity-50">
-          <BarChart3 className="h-10 w-10 mb-2" />
-          <p className="font-bold">Módulo de Análise Tática</p>
-          <p className="text-xs">Geração de insights complexos baseada nos últimos scrims</p>
-        </div>
+        <ScrimAnalysisTab />
       )}
     </div>
   )
