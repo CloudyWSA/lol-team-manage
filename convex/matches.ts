@@ -38,3 +38,10 @@ export const createMatch = mutation({
     return await ctx.db.insert("officialMatches", args);
   },
 });
+
+export const deleteMatch = mutation({
+  args: { id: v.id("officialMatches") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+  },
+});

@@ -23,6 +23,7 @@ import {
   BarChart3,
   Plus,
   Loader2,
+  Trash2,
 } from "lucide-react"
 import {
   Dialog,
@@ -62,9 +63,10 @@ export function MatchesContent() {
   // Queries
   const allMatches = useQuery(api.matches.listByTeam, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
   const createMatch = useMutation(api.matches.createMatch)
+  const deleteMatch = useMutation(api.matches.deleteMatch)
 
-  const upcomingMatches = allMatches?.filter(m => !m.result) || []
-  const matchHistory = allMatches?.filter(m => m.result) || []
+  const upcomingMatches = allMatches?.filter((m: any) => !m.result) || []
+  const matchHistory = allMatches?.filter((m: any) => m.result) || []
 
   const handleCreateMatch = async () => {
     if (!newMatch.opponent || !newMatch.date || !user?.teamId) return
@@ -86,6 +88,16 @@ export function MatchesContent() {
       })
     } catch (error) {
       toast.error("Erro ao agendar partida")
+    }
+  }
+
+  const handleDeleteMatch = async (id: Id<"officialMatches">) => {
+    if (!confirm("Tem certeza que deseja excluir esta partida?")) return
+    try {
+      await deleteMatch({ id })
+      toast.success("Partida excluída")
+    } catch (error) {
+      toast.error("Erro ao excluir partida")
     }
   }
 
@@ -133,7 +145,7 @@ export function MatchesContent() {
                   <Input 
                     type="date"
                     value={newMatch.date}
-                    onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMatch({ ...newMatch, date: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -141,7 +153,7 @@ export function MatchesContent() {
                   <Input 
                     type="time"
                     value={newMatch.time}
-                    onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMatch({ ...newMatch, time: e.target.value })}
                   />
                 </div>
               </div>
@@ -150,7 +162,7 @@ export function MatchesContent() {
                   <Label>Fase/Semana</Label>
                   <Input 
                     value={newMatch.stage}
-                    onChange={(e) => setNewMatch({ ...newMatch, stage: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMatch({ ...newMatch, stage: e.target.value })}
                     placeholder="Ex: Semana 1"
                   />
                 </div>
@@ -158,7 +170,7 @@ export function MatchesContent() {
                   <Label>Link da Transmissão</Label>
                   <Input 
                     value={newMatch.broadcast}
-                    onChange={(e) => setNewMatch({ ...newMatch, broadcast: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMatch({ ...newMatch, broadcast: e.target.value })}
                     placeholder="https://..."
                   />
                 </div>
@@ -182,7 +194,7 @@ export function MatchesContent() {
               </CardContent>
             </Card>
           ) : (
-            upcomingMatches.map((match) => (
+            upcomingMatches.map((match: any) => (
               <Card key={match._id} className="stat-card border-border/50">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -223,6 +235,9 @@ export function MatchesContent() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </Link>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteMatch(match._id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -249,7 +264,7 @@ export function MatchesContent() {
             </Card>
           )}
 
-          {matchHistory.map((match) => (
+          {matchHistory.map((match: any) => (
             <Card key={match._id} className="stat-card border-border/50 overflow-hidden">
               <CardContent className="p-0">
                 <Link
@@ -275,7 +290,15 @@ export function MatchesContent() {
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 -mr-2" onClick={(e: React.MouseEvent) => {
+                      e.preventDefault()
+                      handleDeleteMatch(match._id)
+                    }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
                 </Link>
               </CardContent>
             </Card>

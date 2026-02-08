@@ -69,7 +69,7 @@ export const register = action({
     name: v.string(),
     email: v.string(),
     password: v.string(),
-    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst")),
+    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst"), v.literal("psychologist")),
     teamName: v.optional(v.string()),
     inviteCode: v.optional(v.string()),
     position: v.optional(v.string()),
@@ -90,7 +90,7 @@ export const createWithPassword = mutation({
     name: v.string(),
     email: v.string(),
     password: v.string(),
-    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst")),
+    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst"), v.literal("psychologist")),
     teamName: v.optional(v.string()),
     inviteCode: v.optional(v.string()),
     position: v.optional(v.string()),
@@ -156,10 +156,29 @@ export const createWithPassword = mutation({
   },
 });
 
-// Replaces the old register mutation to prevent usage?
-// I should probably remove or rename the old `register` to avoid confusion, 
-// but I'll comment it out or overwrite it.
-// The code below is replacing the existing file content significantly.
+export const remove = mutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+  },
+});
+
+export const listByTeam = query({
+  args: { teamId: v.optional(v.id("teams")) },
+  handler: async (ctx, args) => {
+    if (!args.teamId) return [];
+
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .collect();
+
+    // Enhance users with latest health record if needed for the UI,
+    // but for now returning raw user data as TeamContent likely expects.
+    // If the UI expects specific fields, we can map them here.
+    return users;
+  },
+});
 
 
 

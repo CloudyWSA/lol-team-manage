@@ -1,6 +1,6 @@
 import { LucideIcon } from "lucide-react"
 
-export type EventType = "Review" | "Treino" | "Estratégia" | "1-on-1" | "Media" | "Scrim"
+export type EventType = "Review" | "Treino" | "Estratégia" | "1-on-1" | "Media" | "Scrim" | "Psicólogo" | "Nutricionista" | "Fisioterapeuta" | "Médico"
 
 export type EventStatus = "Confirmado" | "Pendente" | "Cancelado"
 

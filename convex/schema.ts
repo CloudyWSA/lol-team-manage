@@ -6,7 +6,7 @@ export default defineSchema({
   users: defineTable({
     name: v.string(),
     email: v.string(),
-    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst")),
+    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst"), v.literal("psychologist")),
     password: v.optional(v.string()),
     position: v.optional(v.string()), // Top, Jungle, Mid, ADC, Support
     teamId: v.id("teams"),
@@ -37,7 +37,7 @@ export default defineSchema({
     teamId: v.id("teams"),
     code: v.string(), // Random short code
     email: v.optional(v.string()), // Optional, if we want to restrict to email
-    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst")),
+    role: v.union(v.literal("coach"), v.literal("player"), v.literal("analyst"), v.literal("psychologist")),
     position: v.optional(v.string()),
     expiresAt: v.number(), // Timestamp
     used: v.boolean(),
@@ -87,14 +87,49 @@ export default defineSchema({
       objectives: v.array(v.string()),
       focus: v.string(),
     })),
+    opponentProfile: v.optional(v.string()),
   }).index("by_team", ["teamId"]),
 
   scrimGames: defineTable({
     scrimId: v.id("scrims"),
+    riotMatchId: v.optional(v.string()),
     gameNumber: v.number(),
     result: v.union(v.literal("W"), v.literal("L")),
     duration: v.string(),
     side: v.union(v.literal("Blue"), v.literal("Red")),
+    participants: v.optional(v.array(v.object({
+      puuid: v.string(),
+      summonerName: v.string(), // riotIdGameName + tagline
+      championName: v.string(),
+      role: v.string(),
+      teamId: v.number(), // 100 or 200
+      kills: v.number(),
+      deaths: v.number(),
+      assists: v.number(),
+      totalDamageDealtToChampions: v.number(),
+      goldEarned: v.number(),
+      win: v.boolean(),
+      items: v.optional(v.array(v.number())),
+      cs: v.optional(v.number()),
+      dpm: v.optional(v.number()),
+      visionScore: v.optional(v.number()),
+    }))),
+    blueStats: v.optional(v.object({
+      gold: v.number(),
+      kills: v.number(),
+      towers: v.number(),
+      dragons: v.number(),
+      barons: v.number(),
+      grubs: v.number(),
+    })),
+    redStats: v.optional(v.object({
+      gold: v.number(),
+      kills: v.number(),
+      towers: v.number(),
+      dragons: v.number(),
+      barons: v.number(),
+      grubs: v.number(),
+    })),
     objectives: v.optional(v.object({
       firstBlood: v.boolean(),
       firstTower: v.boolean(),
@@ -244,13 +279,16 @@ export default defineSchema({
 
   appointments: defineTable({
     userId: v.id("users"),
-    type: v.string(),
-    professional: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    type: v.string(), // "Psicólogo", "Nutricionista", "Fisioterapeuta", etc.
+    professional: v.string(), // Name or ID
     date: v.string(),
     time: v.string(),
-    status: v.union(v.literal("confirmado"), v.literal("agendado"), v.literal("pendente")),
+    status: v.union(v.literal("confirmado"), v.literal("agendado"), v.literal("pendente"), v.literal("cancelado")),
+    observations: v.optional(v.string()),
     teamId: v.id("teams"),
-  }).index("by_user", ["userId"]),
+  }).index("by_user", ["userId"]).index("by_team", ["teamId"]),
 
   playerPerformanceSnapshots: defineTable({
     userId: v.id("users"),
@@ -282,4 +320,24 @@ export default defineSchema({
     tags: v.array(v.string()),
     createdAt: v.number(),
   }).index("by_team", ["teamId"]),
+
+  scrimMedia: defineTable({
+    scrimId: v.id("scrims"),
+    type: v.union(v.literal("image"), v.literal("video"), v.literal("youtube")),
+    title: v.string(),
+    description: v.optional(v.string()),
+    url: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
+    tags: v.array(v.string()),
+    createdAt: v.number(),
+  }).index("by_scrim", ["scrimId"]),
+
+  scrimNotes: defineTable({
+    scrimId: v.id("scrims"),
+    category: v.union(v.literal("tactical"), v.literal("draft"), v.literal("behavior"), v.literal("general")),
+    content: v.string(),
+    author: v.string(),
+    createdAt: v.number(),
+  }).index("by_scrim", ["scrimId"]),
+
 });

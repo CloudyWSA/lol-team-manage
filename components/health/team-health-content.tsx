@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -13,14 +13,10 @@ import {
   Moon,
   Utensils,
   Brain,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Droplets,
   AlertTriangle,
   CheckCircle,
   Users,
-  ChevronRight,
   ChevronDown,
   Calendar,
   ArrowLeftRight,
@@ -43,76 +39,100 @@ import {
   Radar,
   Legend,
 } from "recharts"
+
+const LineChartAny = LineChart as any;
+const LineAny = Line as any;
+const XAxisAny = XAxis as any;
+const YAxisAny = YAxis as any;
+const CartesianGridAny = CartesianGrid as any;
+const TooltipAny = Tooltip as any;
+const ResponsiveContainerAny = ResponsiveContainer as any;
+const BarChartAny = BarChart as any;
+const BarAny = Bar as any;
+const RadarChartAny = RadarChart as any;
+const PolarGridAny = PolarGrid as any;
+const PolarAngleAxisAny = PolarAngleAxis as any;
+const PolarRadiusAxisAny = PolarRadiusAxis as any;
+const RadarAny = Radar as any;
+const LegendAny = Legend as any;
 import Link from "next/link"
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useAuth } from "@/lib/auth-context"
 import { Id } from "@/convex/_generated/dataModel"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import { calculateStatus, getAlerts, getStatusBadge, HealthRecord } from "@/lib/utils/health"
 
-// Helper functions for health metrics
-function calculateStatus(record: any) {
-  if (!record) return "no-data"
-  
-  let score = 0
-  let totalMetrics = 0
-
-  if (record.sleep) {
-    score += (record.sleep.hours / 8) * 100
-    totalMetrics++
-  }
-  if (record.mood) {
-    score += (record.mood.score / 5) * 100
-    totalMetrics++
-  }
-
-  const finalScore = totalMetrics > 0 ? score / totalMetrics : 0
-
-  if (finalScore >= 90) return "excellent"
-  if (finalScore >= 75) return "good"
-  if (finalScore >= 60) return "attention"
-  return "critical"
-}
-
-function getAlerts(record: any) {
-  if (!record) return []
-  const alerts = []
-  if (record.sleep && record.sleep.hours < 6) alerts.push("Sono crítico")
-  if (record.sleep && record.sleep.hours < 7.5) alerts.push("Sono abaixo da média")
-  if (record.mood && record.mood.score < 3) alerts.push("Humor baixo")
-  if (record.mood && record.mood.stress > 4) alerts.push("Estresse elevado")
-  return alerts
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case "excellent": return "text-green-500"
-    case "good": return "text-blue-500"
-    case "attention": return "text-yellow-500"
-    case "critical": return "text-red-500"
-    default: return "text-muted-foreground"
-  }
-}
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "excellent": return <Badge className="bg-green-500/20 text-green-500">Excelente</Badge>
-    case "good": return <Badge className="bg-blue-500/20 text-blue-500">Bom</Badge>
-    case "attention": return <Badge className="bg-yellow-500/20 text-yellow-500">Atenção</Badge>
-    case "critical": return <Badge className="bg-red-500/20 text-red-500">Crítico</Badge>
-    default: return <Badge variant="outline">Sem dados</Badge>
-  }
-}
 
 export function TeamHealthContent() {
   const { user } = useAuth()
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set())
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const teamData = useQuery(api.health.listTeamHealth, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  const appointments = useQuery(api.appointments.listAppointments, user?.teamId ? { teamId: user.teamId as Id<"teams"> } : "skip")
+  const createAppointment = useMutation(api.appointments.createAppointment)
+  const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false)
+  const [newAppointment, setNewAppointment] = useState({
+    title: "",
+    description: "",
+    type: "Psicólogo",
+    professional: user?.name || "",
+    userId: "",
+    date: new Date(),
+    time: "14:00",
+    observations: ""
+  })
+
+  // Group appointments by status
+  const upcomingAppointments = useMemo(() => {
+    if (!appointments || !mounted) return []
+    const now = new Date().toISOString()
+    return (appointments as any[]).filter((a: any) => a.date >= now.split('T')[0] && a.status !== 'cancelado')
+  }, [appointments, mounted])
+
+  const handleCreateAppointment = async () => {
+    if (!user?.teamId || !newAppointment.userId) return
+
+    await createAppointment({
+      teamId: user.teamId as Id<"teams">,
+      userId: newAppointment.userId as Id<"users">,
+      title: newAppointment.title,
+      description: newAppointment.description,
+      type: newAppointment.type,
+      professional: newAppointment.professional,
+      date: newAppointment.date.toISOString().split('T')[0],
+      time: newAppointment.time,
+      observations: newAppointment.observations
+    })
+    setIsAppointmentDialogOpen(false)
+    setNewAppointment({
+      title: "",
+      description: "",
+      type: "Psicólogo",
+      professional: user?.name || "",
+      userId: "",
+      date: new Date(),
+      time: "14:00",
+      observations: ""
+    })
+  }
 
   const togglePlayerExpanded = (playerId: string) => {
-    setExpandedPlayers(prev => {
+    setExpandedPlayers((prev: Set<string>) => {
       const newSet = new Set(prev)
       if (newSet.has(playerId)) newSet.delete(playerId)
       else newSet.add(playerId)
@@ -122,15 +142,15 @@ export function TeamHealthContent() {
 
   // Historical dates for the last 7 days (generated dynamically)
   const historicalDates = useMemo(() => {
-    const dates = []
+    const dates: { date: string; label: string; fullLabel: string }[] = []
     for (let i = 0; i < 7; i++) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const iso = d.toISOString().split('T')[0]
-      const label = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
-      dates.push({ 
-        date: iso, 
-        label: label.charAt(0).toUpperCase() + label.slice(1), 
+      const rawLabel = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+      dates.push({
+        date: iso,
+        label: rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1),
         fullLabel: d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' })
       })
     }
@@ -141,51 +161,51 @@ export function TeamHealthContent() {
   const [comparisonDate, setComparisonDate] = useState(historicalDates[1].date)
   const [isComparisonMode, setIsComparisonMode] = useState(false)
 
-  if (!teamData) return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando dados de saúde da equipe...</div>
+  if (!teamData || !mounted) return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando dados de saúde da equipe...</div>
 
   // Map backend data to frontend structure
-  const playersHealth = teamData.map(d => ({
+  const playersHealth = (teamData || []).map((d: any) => ({
     id: d.user._id,
     name: d.user.name,
     position: d.user.position || "Sem Posição",
     avatar: d.user.name[0],
-    sleep: { 
-      avg: d.latestRecord?.sleep?.hours || 0, 
+    sleep: {
+      avg: d.latestRecord?.sleep?.hours || 0,
       quality: d.latestRecord?.sleep?.quality || 0,
-      trend: 0 
+      trend: 0
     },
-    mood: { 
-      avg: d.latestRecord?.mood?.score || 0, 
-      energy: d.latestRecord?.mood?.energy || 0, 
+    mood: {
+      avg: d.latestRecord?.mood?.score || 0,
+      energy: d.latestRecord?.mood?.energy || 0,
       stress: d.latestRecord?.mood?.stress || 0,
-      trend: 0 
+      trend: 0
     },
-    status: calculateStatus(d.latestRecord),
-    alerts: getAlerts(d.latestRecord),
+    status: calculateStatus(d.latestRecord as HealthRecord | null),
+    alerts: getAlerts(d.latestRecord as HealthRecord | null),
     lastUpdate: d.latestRecord ? new Date(d.latestRecord._creationTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : "Sem dados",
-    history: d.history 
+    history: d.history
   }))
 
   const getPlayerDataForDate = (playerId: string, date: string) => {
-    const player = playersHealth.find(p => p.id === playerId)
+    const player = (playersHealth as any[]).find((p: any) => p.id === playerId)
     if (!player) return null
-    const record = player.history.find(h => h.date === date)
+    const record = (player.history as any[]).find((h: any) => h.date === date)
     if (!record) return null
     return {
       ...record,
       sleep: { avg: record.sleep?.hours || 0, quality: record.sleep?.quality || 0 },
       mood: { avg: record.mood?.score || 0, energy: record.mood?.energy || 0, stress: record.mood?.stress || 0 },
-      status: calculateStatus(record),
+      status: calculateStatus(record as HealthRecord | null),
       nutrition: { calories: 0, target: 2000, adherence: 0 },
       hydration: { avg: record.hydration || 0, target: 3.0 }
     }
   }
 
   const getPlayerTrendData = (playerId: string) => {
-    const player = playersHealth.find(p => p.id === playerId)
+    const player = (playersHealth as any[]).find((p: any) => p.id === playerId)
     if (!player) return []
-    return player.history.map(h => ({
-      date: historicalDates.find(d => d.date === h.date)?.label || h.date.slice(-2),
+    return (player.history as any[]).map((h: any) => ({
+      date: historicalDates.find((d: any) => d.date === h.date)?.label || h.date.slice(-2),
       sono: h.sleep?.hours || 0,
       humor: h.mood?.score || 0,
       energia: h.mood?.energy || 0,
@@ -193,24 +213,24 @@ export function TeamHealthContent() {
     }))
   }
 
-  const playersWithAlerts = playersHealth.filter((p) => p.alerts.length > 0)
-  const teamSleepAvg = playersHealth.length > 0 
-    ? playersHealth.reduce((acc, p) => acc + p.sleep.avg, 0) / playersHealth.length 
+  const playersWithAlerts = playersHealth.filter((p: any) => p.alerts.length > 0)
+  const teamSleepAvg = playersHealth.length > 0
+    ? playersHealth.reduce((acc: number, p: any) => acc + p.sleep.avg, 0) / playersHealth.length
     : 0
-  const teamMoodAvg = playersHealth.length > 0 
-    ? playersHealth.reduce((acc, p) => acc + p.mood.avg, 0) / playersHealth.length 
+  const teamMoodAvg = playersHealth.length > 0
+    ? playersHealth.reduce((acc: number, p: any) => acc + p.mood.avg, 0) / playersHealth.length
     : 0
 
   // Weekly average for the chart
   const teamWeeklyData = historicalDates.map((dateItem: any) => {
-    const dayRecords = teamData.flatMap((d: any) => d.history.filter((h: any) => h.date === dateItem.date))
+    const dayRecords = (teamData || []).flatMap((d: any) => d.history.filter((h: any) => h.date === dateItem.date))
     if (dayRecords.length === 0) return { day: dateItem.label, sleep: 0, mood: 0, energy: 0 }
-    
+
     return {
       day: dateItem.label,
-      sleep: dayRecords.reduce((acc, r) => acc + (r.sleep?.hours || 0), 0) / dayRecords.length,
-      mood: dayRecords.reduce((acc, r) => acc + (r.mood?.score || 0), 0) / dayRecords.length,
-      energy: dayRecords.reduce((acc, r) => acc + (r.mood?.energy || 0), 0) / dayRecords.length,
+      sleep: dayRecords.reduce((acc: number, r: any) => acc + (r.sleep?.hours || 0), 0) / dayRecords.length,
+      mood: dayRecords.reduce((acc: number, r: any) => acc + (r.mood?.score || 0), 0) / dayRecords.length,
+      energy: dayRecords.reduce((acc: number, r: any) => acc + (r.mood?.energy || 0), 0) / dayRecords.length,
     }
   }).reverse()
 
@@ -224,15 +244,20 @@ export function TeamHealthContent() {
     { metric: "Sono" },
     { metric: "Humor" },
     { metric: "Energia" },
-  ].map(m => {
-    const row: any = { ...m }
-    playersHealth.forEach(p => {
+  ].map((m: any) => {
+    const row: Record<string, any> = { ...m }
+    playersHealth.forEach((p: any) => {
       if (m.metric === "Sono") row[p.name] = (p.sleep.avg / 8) * 100
       if (m.metric === "Humor") row[p.name] = (p.mood.avg / 5) * 100
       if (m.metric === "Energia") row[p.name] = (p.mood.energy / 5) * 100
     })
     return row
   })
+
+  const filteredPlayers = playersHealth.filter((player: any) => {
+    // Add any filtering logic here if needed, otherwise it's just all playersHealth
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -241,6 +266,7 @@ export function TeamHealthContent() {
           <TabsTrigger value="overview">Visao Geral</TabsTrigger>
           <TabsTrigger value="players">Por Jogador</TabsTrigger>
           <TabsTrigger value="comparison">Comparativo</TabsTrigger>
+          <TabsTrigger value="sessions">Sessões</TabsTrigger>
           <TabsTrigger value="alerts">Alertas</TabsTrigger>
         </TabsList>
 
@@ -319,22 +345,22 @@ export function TeamHealthContent() {
             </CardHeader>
             <CardContent>
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={teamWeeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
-                    <XAxis 
-                      dataKey="day" 
-                      stroke="oklch(0.65 0.02 285)" 
+                <ResponsiveContainerAny width="100%" height="100%">
+                  <LineChartAny data={teamWeeklyData}>
+                    <CartesianGridAny strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
+                    <XAxisAny
+                      dataKey="day"
+                      stroke="oklch(0.65 0.02 285)"
                       fontSize={12}
                       tickLine={false}
                     />
-                    <YAxis 
-                      stroke="oklch(0.65 0.02 285)" 
+                    <YAxisAny
+                      stroke="oklch(0.65 0.02 285)"
                       fontSize={12}
                       tickLine={false}
                       domain={[0, 10]}
                     />
-                    <Tooltip 
+                    <TooltipAny
                       contentStyle={{
                         backgroundColor: "oklch(0.18 0.03 285)",
                         border: "1px solid oklch(0.28 0.04 285)",
@@ -342,8 +368,8 @@ export function TeamHealthContent() {
                       }}
                       labelStyle={{ color: "oklch(0.95 0.01 285)" }}
                     />
-                    <Legend />
-                    <Line
+                    <LegendAny />
+                    <LineAny
                       type="monotone"
                       dataKey="sleep"
                       name="Sono (h)"
@@ -351,7 +377,7 @@ export function TeamHealthContent() {
                       strokeWidth={2}
                       dot={{ fill: "oklch(0.55 0.18 300)", strokeWidth: 0 }}
                     />
-                    <Line
+                    <LineAny
                       type="monotone"
                       dataKey="mood"
                       name="Humor"
@@ -359,7 +385,7 @@ export function TeamHealthContent() {
                       strokeWidth={2}
                       dot={{ fill: "oklch(0.6 0.16 320)", strokeWidth: 0 }}
                     />
-                    <Line
+                    <LineAny
                       type="monotone"
                       dataKey="energy"
                       name="Energia"
@@ -367,8 +393,8 @@ export function TeamHealthContent() {
                       strokeWidth={2}
                       dot={{ fill: "oklch(0.7 0.15 270)", strokeWidth: 0 }}
                     />
-                  </LineChart>
-                </ResponsiveContainer>
+                  </LineChartAny>
+                </ResponsiveContainerAny>
               </div>
             </CardContent>
           </Card>
@@ -386,7 +412,7 @@ export function TeamHealthContent() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                {playersHealth.map((player) => (
+                {filteredPlayers.map((player: any) => (
                   <div
                     key={player.id}
                     className="rounded-lg border border-border/50 bg-muted/30 p-4"
@@ -803,6 +829,152 @@ export function TeamHealthContent() {
           </div>
         </TabsContent>
 
+        {/* Sessions Tab */}
+        <TabsContent value="sessions" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Sessões de Saúde</h2>
+              <p className="text-sm text-muted-foreground">Agende e gerencie atendimentos para os jogadores.</p>
+            </div>
+            <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Nova Sessão
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Agendar Sessão</DialogTitle>
+                  <DialogDescription>Crie um novo agendamento para um jogador.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label>Titulo</Label>
+                    <Input
+                      placeholder="Ex: Acompanhamento Psicológico"
+                      value={newAppointment.title}
+                      onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Tipo</Label>
+                      <Select
+                        value={newAppointment.type}
+                        onValueChange={(val) => setNewAppointment({ ...newAppointment, type: val })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Psicólogo"><span>Psicólogo</span></SelectItem>
+                          <SelectItem value="Nutricionista"><span>Nutricionista</span></SelectItem>
+                          <SelectItem value="Fisioterapeuta"><span>Fisioterapeuta</span></SelectItem>
+                          <SelectItem value="Médico"><span>Médico</span></SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Jogador</Label>
+                      <Select
+                        value={newAppointment.userId}
+                        onValueChange={(val) => setNewAppointment({ ...newAppointment, userId: val })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredPlayers.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              <span>{p.name}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Data</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {newAppointment.date ? format(newAppointment.date, "dd 'de' MMMM", { locale: ptBR }) : "Selecione"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <CalendarComponent
+                            mode="single"
+                            selected={newAppointment.date}
+                            onSelect={(d) => d && setNewAppointment({ ...newAppointment, date: d })}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Horário</Label>
+                      <Input
+                        type="time"
+                        value={newAppointment.time}
+                        onChange={(e) => setNewAppointment({ ...newAppointment, time: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Descrição</Label>
+                    <Textarea
+                      placeholder="Detalhes sobre a sessão..."
+                      value={newAppointment.description}
+                      onChange={(e) => setNewAppointment({ ...newAppointment, description: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAppointmentDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateAppointment}>Agendar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {upcomingAppointments.length === 0 ? (
+              <div className="col-span-full flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl text-muted-foreground">
+                <Calendar className="h-10 w-10 mb-2 opacity-50" />
+                <p>Nenhuma sessão agendada.</p>
+              </div>
+            ) : (
+              upcomingAppointments.map((apt: any) => (
+                <Card key={apt._id} className="stat-card border-border/50">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                        {apt.type}
+                      </Badge>
+                      <Badge variant={apt.status === "confirmado" ? "default" : "secondary"}>
+                        {apt.status}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-base mt-2">{apt.title}</CardTitle>
+                    <CardDescription>{new Date(apt.date).toLocaleDateString('pt-BR')} às {apt.time}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm text-muted-foreground mb-4">
+                      Com: {playersHealth.find((p: any) => p.id === apt.userId)?.name || "Jogador"}
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {apt.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
         {/* Comparison Tab */}
         <TabsContent value="comparison" className="space-y-6">
           <Card className="stat-card border-border/50">
@@ -817,41 +989,16 @@ export function TeamHealthContent() {
                     <PolarGrid stroke="oklch(0.28 0.04 285)" />
                     <PolarAngleAxis dataKey="metric" stroke="oklch(0.65 0.02 285)" fontSize={12} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="oklch(0.65 0.02 285)" fontSize={10} />
-                    <Radar
-                      name="ThunderStrike"
-                      dataKey="ThunderStrike"
-                      stroke="oklch(0.6 0.16 320)"
-                      fill="oklch(0.6 0.16 320)"
-                      fillOpacity={0.1}
-                    />
-                    <Radar
-                      name="ShadowTop"
-                      dataKey="ShadowTop"
-                      stroke="oklch(0.7 0.15 50)"
-                      fill="oklch(0.7 0.15 50)"
-                      fillOpacity={0.1}
-                    />
-                    <Radar
-                      name="JungleKing"
-                      dataKey="JungleKing"
-                      stroke="oklch(0.65 0.18 150)"
-                      fill="oklch(0.65 0.18 150)"
-                      fillOpacity={0.1}
-                    />
-                    <Radar
-                      name="ADCarry"
-                      dataKey="ADCarry"
-                      stroke="oklch(0.55 0.18 300)"
-                      fill="oklch(0.55 0.18 300)"
-                      fillOpacity={0.1}
-                    />
-                    <Radar
-                      name="SupportMaster"
-                      dataKey="SupportMaster"
-                      stroke="oklch(0.7 0.15 270)"
-                      fill="oklch(0.7 0.15 270)"
-                      fillOpacity={0.1}
-                    />
+                    {playersHealth.map((p: any, i: number) => (
+                      <Radar
+                        key={p.id}
+                        name={p.name}
+                        dataKey={p.name}
+                        stroke={`hsl(var(--chart-${(i % 5) + 1}))`}
+                        fill={`hsl(var(--chart-${(i % 5) + 1}))`}
+                        fillOpacity={0.1}
+                      />
+                    ))}
                     <Legend />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -868,11 +1015,11 @@ export function TeamHealthContent() {
             <CardContent>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={playersHealth.map(p => ({ name: p.name, sono: p.sleep.avg, meta: 8 }))}>
+                  <BarChart data={playersHealth.map((p: any) => ({ name: p.name, sono: p.sleep.avg, meta: 8 }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 285)" />
                     <XAxis dataKey="name" stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} />
                     <YAxis stroke="oklch(0.65 0.02 285)" fontSize={12} tickLine={false} domain={[0, 10]} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: "oklch(0.18 0.03 285)",
                         border: "1px solid oklch(0.28 0.04 285)",
@@ -908,7 +1055,7 @@ export function TeamHealthContent() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {playersWithAlerts.map((player) => (
+                  {playersWithAlerts.map((player: any) => (
                     <div
                       key={player.id}
                       className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4"
@@ -930,7 +1077,7 @@ export function TeamHealthContent() {
                       <div className="mt-4">
                         <p className="text-sm font-medium text-yellow-500">Problemas identificados:</p>
                         <ul className="mt-2 space-y-2">
-                          {player.alerts.map((alert, i) => (
+                          {player.alerts.map((alert: any, i: number) => (
                             <li key={i} className="flex items-center gap-2 text-sm">
                               <AlertTriangle className="h-4 w-4 text-yellow-500" />
                               <span>{alert}</span>

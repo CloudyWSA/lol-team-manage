@@ -5,7 +5,7 @@ import { useQuery, useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Doc, Id } from "@/convex/_generated/dataModel"
 
-export type UserRole = "coach" | "player" | "analyst"
+export type UserRole = "coach" | "player" | "analyst" | "psychologist"
 
 export interface User {
   id: string
@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("invokers-user-email")
   }
 
-  const isStaff = user?.role === "coach" || user?.role === "analyst"
+  const isStaff = user?.role === "coach" || user?.role === "analyst" || user?.role === "psychologist"
   const isLoading = isInitializing || (storedEmail !== null && convexUser === undefined)
 
   return (

@@ -44,7 +44,15 @@ export const updateEvent = mutation({
   args: {
     id: v.id("agendaEvents"),
     title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    startTime: v.optional(v.string()),
+    endTime: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("Review"), v.literal("Treino"), v.literal("Estratégia"), v.literal("Outro"))),
     status: v.optional(v.union(v.literal("Confirmado"), v.literal("Pendente"), v.literal("Cancelado"))),
+    location: v.optional(v.string()),
+    assignees: v.optional(v.array(v.string())),
+    priority: v.optional(v.union(v.literal("Baixa"), v.literal("Media"), v.literal("Alta"))),
+    observations: v.optional(v.string()),
     date: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

@@ -16,6 +16,7 @@ import {
   TrendingUp,
   ChevronRight,
   Loader2,
+  Trash2,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -65,6 +66,17 @@ export function ScoutingContent() {
   // Mutations
   const addTeam = useMutation(api.scouting.addScoutedTeam)
   const updateNotes = useMutation(api.scouting.updateNotes)
+  const removeTeam = useMutation(api.scouting.removeScoutedTeam)
+
+  const handleRemoveTeam = async (id: Id<"scoutingTeams">) => {
+    if (!confirm("Remover este time do scouting?")) return
+    try {
+      await removeTeam({ id })
+      toast.success("Time removido")
+    } catch (error) {
+      toast.error("Erro ao remover time")
+    }
+  }
 
   const handleAddTeam = async () => {
     if (!newTeam.name || !newTeam.region || !user?.teamId) return
@@ -106,7 +118,7 @@ export function ScoutingContent() {
     }
   }
 
-  const filteredTeams = teams?.filter((team) =>
+  const filteredTeams = teams?.filter((team: any) =>
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
 
@@ -123,7 +135,7 @@ export function ScoutingContent() {
             placeholder="Buscar time..."
             className="bg-muted/50 pl-9"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
           />
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -147,7 +159,7 @@ export function ScoutingContent() {
                   placeholder="Ex: Team Liquid" 
                   className="bg-muted/50" 
                   value={newTeam.name}
-                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTeam({ ...newTeam, name: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -157,7 +169,7 @@ export function ScoutingContent() {
                     placeholder="Ex: NA, EU, KR" 
                     className="bg-muted/50" 
                     value={newTeam.region}
-                    onChange={(e) => setNewTeam({ ...newTeam, region: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTeam({ ...newTeam, region: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -181,7 +193,7 @@ export function ScoutingContent() {
                   placeholder="Observacoes sobre o time" 
                   className="bg-muted/50" 
                   value={newTeam.notes}
-                  onChange={(e) => setNewTeam({ ...newTeam, notes: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTeam({ ...newTeam, notes: e.target.value })}
                 />
               </div>
               <Button className="w-full" onClick={handleAddTeam}>
@@ -202,7 +214,7 @@ export function ScoutingContent() {
                 <Label>Análise Estratégica</Label>
                 <Textarea 
                   value={notesDraft}
-                  onChange={(e) => setNotesDraft(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotesDraft(e.target.value)}
                   className="bg-muted/50 min-h-[120px] resize-none"
                   placeholder="Descreva o estilo de jogo, pontos fortes e fracos..."
                 />
@@ -236,7 +248,7 @@ export function ScoutingContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {teams.reduce((acc, t) => acc + t.alerts, 0)}
+                  {teams.reduce((acc: number, t: any) => acc + t.alerts, 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Alertas ativos</p>
               </div>
@@ -251,7 +263,7 @@ export function ScoutingContent() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {teams.reduce((acc, t) => acc + t.matchesAnalyzed, 0)}
+                  {teams.reduce((acc: number, t: any) => acc + t.matchesAnalyzed, 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Partidas analisadas</p>
               </div>
@@ -275,7 +287,7 @@ export function ScoutingContent() {
 
       {activeTab === "teams" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTeams.map((team) => (
+          {filteredTeams.map((team: any) => (
             <Link key={team._id} href={`/scouting/${team._id}`}>
               <Card className="stat-card border-border/50 transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
                 <CardContent className="p-4">
@@ -293,23 +305,34 @@ export function ScoutingContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        handleEditNotes(team)
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    {team.alerts > 0 && (
-                      <Badge variant="destructive" className="text-xs">
-                        {team.alerts}
-                      </Badge>
-                    )}
-                  </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleEditNotes(team)
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleRemoveTeam(team._id)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      {team.alerts > 0 && (
+                        <Badge variant="destructive" className="text-xs">
+                          {team.alerts}
+                        </Badge>
+                      )}
+                    </div>
                 </div>
 
                   <div className="mt-4 space-y-3">
@@ -321,7 +344,7 @@ export function ScoutingContent() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Forma Recente</span>
                       <div className="flex gap-1">
-                        {team.recentForm.map((result, i) => (
+                        {team.recentForm.map((result: string, i: number) => (
                           <div
                             key={i}
                             className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium ${
@@ -362,7 +385,7 @@ export function ScoutingContent() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {teams?.map(team => (
+          {teams?.map((team: any) => (
             <PlayerList key={team._id} teamId={team._id} teamName={team.name} />
           ))}
           {(!teams || teams.length === 0) && (
@@ -384,7 +407,7 @@ function PlayerList({ teamId, teamName }: { teamId: Id<"scoutingTeams">, teamNam
 
   return (
     <>
-      {players.map((player) => (
+      {players.map((player: any) => (
         <Link key={player._id} href={`/scouting/${teamId}/player/${player._id}`}>
           <Card className="stat-card border-border/50 transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
             <CardContent className="p-4">

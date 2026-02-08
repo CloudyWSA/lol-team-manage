@@ -143,6 +143,8 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         return <Badge className="bg-primary/20 text-primary text-[10px]">Coach</Badge>
       case "analyst":
         return <Badge className="bg-accent/20 text-accent text-[10px]">Analista</Badge>
+      case "psychologist":
+        return <Badge className="bg-purple-500/20 text-purple-500 text-[10px]">Psicólogo</Badge>
       case "player":
         return <Badge variant="outline" className="text-[10px]">{user.position || "Player"}</Badge>
     }
