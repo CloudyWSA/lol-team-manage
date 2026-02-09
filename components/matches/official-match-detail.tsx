@@ -309,19 +309,42 @@ export function OfficialMatchDetail({ matchId, gameId, gameVersion }: { matchId:
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="aspect-video bg-black flex items-center justify-center">
-                    {match.broadcast ? (
+{(() => {
+                      const getYoutubeEmbed = (url: string | undefined) => {
+                        if (!url) return null;
+                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                        const match = url.match(regExp);
+                        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+                      };
+                      
+                      const embedUrl = getYoutubeEmbed(match.broadcast);
+
+                      return embedUrl ? (
                          <iframe 
                            width="100%" 
                            height="100%" 
-                           src={match.broadcast.replace("watch?v=", "embed/")} 
+                           src={embedUrl} 
                            title="YouTube video player" 
                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                            allowFullScreen
                            className="border-none"
                          ></iframe>
-                    ) : (
-                        <p className="text-muted-foreground">Link da transmissão não disponível</p>
-                    )}
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                           <p className="text-muted-foreground">Link da transmissão não disponível ou inválido</p>
+                           {match.broadcast && (
+                             <a 
+                               href={match.broadcast.startsWith('http') ? match.broadcast : `https://${match.broadcast}`} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="text-primary text-xs hover:underline flex items-center gap-1"
+                             >
+                               Abrir link externo <ExternalLink className="h-3 w-3" />
+                             </a>
+                           )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
