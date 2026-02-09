@@ -47,3 +47,61 @@ export const deleteMatch = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+export const addDetailedGame = mutation({
+  args: {
+    matchId: v.id("officialMatches"),
+    riotMatchId: v.string(),
+    gameNumber: v.number(),
+    result: v.union(v.literal("W"), v.literal("L")),
+    duration: v.string(),
+    side: v.union(v.literal("Blue"), v.literal("Red")),
+    participants: v.array(v.object({
+      puuid: v.string(),
+      summonerName: v.string(),
+      championName: v.string(),
+      role: v.string(),
+      teamId: v.number(),
+      kills: v.number(),
+      deaths: v.number(),
+      assists: v.number(),
+      totalDamageDealtToChampions: v.number(),
+      goldEarned: v.number(),
+      win: v.boolean(),
+      items: v.optional(v.array(v.number())),
+      cs: v.optional(v.number()),
+      dpm: v.optional(v.number()),
+      visionScore: v.optional(v.number()),
+    })),
+    blueStats: v.optional(v.object({
+      gold: v.number(),
+      kills: v.number(),
+      towers: v.number(),
+      dragons: v.number(),
+      barons: v.number(),
+      grubs: v.number(),
+    })),
+    redStats: v.optional(v.object({
+      gold: v.number(),
+      kills: v.number(),
+      towers: v.number(),
+      dragons: v.number(),
+      barons: v.number(),
+      grubs: v.number(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    // Check if game already exists
+    const existing = await ctx.db
+      .query("officialGames")
+      .withIndex("by_match", (q) => q.eq("matchId", args.matchId))
+      .filter((q) => q.eq(q.field("gameNumber"), args.gameNumber))
+      .unique();
+
+    if (existing) {
+      return await ctx.db.patch(existing._id, args);
+    }
+
+    return await ctx.db.insert("officialGames", args);
+  },
+});

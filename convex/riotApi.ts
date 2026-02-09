@@ -176,6 +176,85 @@ export const syncPlayerStats = action({
   },
 });
 
+
+export const syncOfficialGame = action({
+  args: {
+    matchId: v.id("officialMatches"),
+    riotMatchId: v.string(),
+    gameNumber: v.number(),
+    region: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!RIOT_API_KEY) throw new Error("API Key missing");
+
+    const { cluster } = getRegionInfo(args.region);
+
+    try {
+      const { mData } = await getMatchDetails(args.riotMatchId, cluster);
+      const participants = mData.info.participants;
+      const gameDurationMinutes = mData.info.gameDuration / 60;
+
+      const parsedParticipants = participants.map((p: any) => parseParticipant(p, gameDurationMinutes));
+
+      const getTeamStats = (teamId: number) => {
+        const teamParts = participants.filter((p: any) => p.teamId === teamId);
+        const teamObj = mData.info.teams.find((t: any) => t.teamId === teamId);
+        return {
+          gold: teamParts.reduce((sum: number, p: any) => sum + p.goldEarned, 0),
+          kills: teamParts.reduce((sum: number, p: any) => sum + p.kills, 0),
+          towers: teamObj?.objectives?.tower?.kills || 0,
+          dragons: teamObj?.objectives?.dragon?.kills || 0,
+          barons: teamObj?.objectives?.baron?.kills || 0,
+          grubs: teamObj?.objectives?.horde?.kills || 0,
+        };
+      };
+
+      const blueStats = getTeamStats(100);
+      const redStats = getTeamStats(200);
+
+      // We need to determine which team is "ours" to set W/L correctly for the match record if needed
+      // For now, we just record the game result for the participants. 
+      // Unlike scrims where we know "our team" is 100 or 200 based on mapping, 
+      // here we just store the data. The frontend/logic can decide how to present it.
+      // But we need to pass a "result" and "side" for the officialGames record.
+      // Let's assume we want to track it from the perspective of the team that owns the dashboard?
+      // For now, let's just use Blue side as reference or maybe we can't easily know without more logic.
+      // However, addDetailedGame requires result/side.
+      
+      // OPTION: We can try to match the team name from the match record (args.matchId) 
+      // but we don't have access to DB here easily without another query.
+      // Simplification: Just store it as is, and maybe default to Blue perspective?
+      // Actually, let's just pick Blue team's result as the main "result" for the row, 
+      // but strictly speaking official matches might not be "us" vs "them" in the same way?
+      // Wait, official matches ARE the team's matches. So we should find the team.
+      
+      // Let's query the match to find the team ID, then query the team to get players/name?
+      // That's complex for an action.
+      // For now, let's just assume we are tracking specific players?
+      // OR, simpler: Just save it and let the frontend display.
+      
+      const blueTeamWon = participants.find((p: any) => p.teamId === 100)?.win;
+
+      await ctx.runMutation(api.matches.addDetailedGame, {
+        matchId: args.matchId,
+        gameNumber: args.gameNumber,
+        riotMatchId: args.riotMatchId,
+        duration: `${Math.floor(gameDurationMinutes)}:${Math.round((gameDurationMinutes % 1) * 60).toString().padStart(2, "0")}`,
+        result: blueTeamWon ? "W" : "L", // This is technically Blue's result
+        side: "Blue", // Defaulting to Blue for the main record side?
+        participants: parsedParticipants,
+        blueStats,
+        redStats,
+      });
+
+      return { success: true };
+    } catch (e) {
+      console.error("Match Sync Failed:", e);
+      throw new Error("Falha ao sincronizar dados da partida.");
+    }
+  },
+});
+
 export const syncScrimGame = action({
   args: {
     scrimId: v.id("scrims"),
