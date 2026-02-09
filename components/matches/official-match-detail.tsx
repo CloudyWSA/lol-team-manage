@@ -65,7 +65,8 @@ export function OfficialMatchDetail({ matchId, gameId, gameVersion }: { matchId:
   const [isSyncing, setIsSyncing] = useState(false)
 
   // Convex Query
-  const match = useQuery(api.matches.getMatchWithGames, matchId ? { matchId: matchId as Id<"officialMatches"> } : "skip")
+  const isValidId = matchId && matchId.length > 20
+  const match = useQuery(api.matches.getMatchWithGames, isValidId ? { matchId: matchId as Id<"officialMatches"> } : "skip")
   const user = useAuth().user
   const team = useQuery(api.teams.getTeam, match?.teamId ? { teamId: match.teamId } : "skip")
 
@@ -223,7 +224,79 @@ export function OfficialMatchDetail({ matchId, gameId, gameVersion }: { matchId:
           </div>
         )}
 
-        {activeTab === "analytical" && <MatchAnalyticalTabs />}
+        {activeTab === "analytical" && <MatchAnalyticalTabs stats={(() => {
+          if (!currentMatchData) return null;
+          
+          const bluePlayers = currentMatchData.teams.blue.players;
+          const redPlayers = currentMatchData.teams.red.players;
+          
+          // Helper to safely get snapshot data
+          const getSnapshot = (p: any, min: "at10" | "at15") => {
+             // We need to look at the original raw participant data to find snapshots
+             // But currentMatchData has already mapped it. 
+             // We need to access the raw match.games data
+             const rawGame = match.games.find(g => g._id === currentMatchData.id);
+             const rawP = rawGame?.participants?.find((rp: any) => rp.summonerName === p.name);
+             return rawP?.snapshots?.[min] || { gold: 0, cs: 0, xp: 0 };
+          };
+
+          const mapPlayerStats = (p: any, role: string, team: "blue" | "red") => {
+             const opponent = (team === "blue" ? redPlayers : bluePlayers).find((op: any) => op.role === role);
+             const pSnap10 = getSnapshot(p, "at10");
+             const pSnap15 = getSnapshot(p, "at15");
+             const opSnap10 = opponent ? getSnapshot(opponent, "at10") : { gold: 0, cs: 0, xp: 0 };
+             const opSnap15 = opponent ? getSnapshot(opponent, "at15") : { gold: 0, cs: 0, xp: 0 };
+
+             const totalTeamDmg = (team === "blue" ? bluePlayers : redPlayers).reduce((sum: number, pl: any) => sum + pl.dmg, 0);
+             const totalTeamGold = (team === "blue" ? bluePlayers : redPlayers).reduce((sum: number, pl: any) => sum + pl.gold, 0);
+             const durationMin = parseInt(currentMatchData.duration.split(":")[0]) || 1;
+
+             return {
+                name: p.name,
+                role: role as any,
+                champion: p.champion,
+                at10: {
+                   goldDiff: pSnap10.gold - opSnap10.gold,
+                   csDiff: pSnap10.cs - opSnap10.cs,
+                   xpDiff: pSnap10.xp - opSnap10.xp
+                },
+                at15: {
+                   goldDiff: pSnap15.gold - opSnap15.gold,
+                   csDiff: pSnap15.cs - opSnap15.cs,
+                   xpDiff: pSnap15.xp - opSnap15.xp
+                },
+                dpg: p.gold > 0 ? p.dmg / p.gold : 0,
+                cspm: p.cs / durationMin,
+                vspm: p.vision / durationMin,
+                goldShare: totalTeamGold > 0 ? parseFloat(((p.gold / totalTeamGold) * 100).toFixed(1)) : 0,
+                damageShare: totalTeamDmg > 0 ? parseFloat(((p.dmg / totalTeamDmg) * 100).toFixed(1)) : 0
+             };
+          };
+
+          const statsData = {
+            players: {
+              blue: bluePlayers.map((p: any) => mapPlayerStats(p, p.role, "blue")),
+              red: redPlayers.map((p: any) => mapPlayerStats(p, p.role, "red"))
+            },
+            correlations: {
+              goldVsDamage: [
+                ...bluePlayers.map((p: any) => mapPlayerStats(p, p.role, "blue")),
+                ...redPlayers.map((p: any) => mapPlayerStats(p, p.role, "red"))
+              ]
+            },
+            // Simplified timeline/momentum for now as we don't store full timeline in DB yet
+            timeline: [
+               { minute: 0, goldDiff: 0, xpDiff: 0, winProb: 0.5, events: [] },
+               // We could add point data if we had it
+            ],
+            efficiency: {
+              conversionRatio: { blue: 0, red: 0 }, // Would need obj data
+              resourceVelocity: []
+            }
+          };
+          
+          return statsData;
+        })()} />}
 
         {activeTab === "media" && (
           <div className="grid lg:grid-cols-2 gap-6">

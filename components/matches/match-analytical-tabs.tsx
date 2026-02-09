@@ -43,130 +43,26 @@ import { getChampionIcon } from "@/lib/riot-assets"
 // Riot API Map Constants
 const RIOT_MAP_SIZE = 15000;
 
-// Mock Timeline Data
-const mockTimelineData = [
-  { min: 0, goldDiff: 0, xpDiff: 0 },
-  { min: 5, goldDiff: 200, xpDiff: -100 },
-  { min: 10, goldDiff: -400, xpDiff: -500 },
-  { min: 15, goldDiff: 1200, xpDiff: 800 },
-  { min: 20, goldDiff: 2500, xpDiff: 3200 },
-  { min: 25, goldDiff: 4800, xpDiff: 5500 },
-  { min: 28, goldDiff: 8200, xpDiff: 7800 },
-]
 
-// Enhanced Heatmap Mock Data (Riot API Coordinates 0-15000)
-// Concentrating points in lanes, river, and jungle camps
-const generateHeatmapData = () => {
-  const points: { x: number, y: number }[] = [];
-  
-  // Mid Lane Activity
-  for (let i = 0; i < 40; i++) {
-    const center = 7500;
-    points.push({ 
-      x: center + (Math.random() - 0.5) * 2000, 
-      y: center + (Math.random() - 0.5) * 2000 
-    });
-  }
-  
-  // Bottom Lane
-  for (let i = 0; i < 30; i++) {
-    points.push({ 
-      x: 12000 + (Math.random() - 0.5) * 1500, 
-      y: 3000 + (Math.random() - 0.5) * 1500 
-    });
-  }
 
-  // Top Lane
-  for (let i = 0; i < 20; i++) {
-    points.push({ 
-      x: 3000 + (Math.random() - 0.5) * 1500, 
-      y: 12000 + (Math.random() - 0.5) * 1500 
-    });
-  }
-
-  // Dragon Pit
-  for (let i = 0; i < 15; i++) {
-    points.push({ x: 9800 + (Math.random() - 0.5) * 800, y: 4400 + (Math.random() - 0.5) * 800 });
-  }
-
-  // Baron Pit
-  for (let i = 0; i < 10; i++) {
-    points.push({ x: 5000 + (Math.random() - 0.5) * 800, y: 10200 + (Math.random() - 0.5) * 800 });
-  }
-
-  // Blue Side Jungle
-  for (let i = 0; i < 15; i++) {
-    points.push({ x: 4000 + (Math.random() - 0.5) * 2000, y: 4000 + (Math.random() - 0.5) * 2000 });
-  }
-
-  return points;
-};
-
-const mockActivityPoints = generateHeatmapData();
-
-const mockEvents = [
-  { type: "kill", team: "blue", time: "3:42", x: 25, y: 72, killer: "LeeSin", victim: "Sejuani" },
-  { type: "kill", team: "blue", time: "6:15", x: 48, y: 32, killer: "Orianna", victim: "Azir" },
-  { type: "dragon", team: "blue", time: "8:20", x: 70, y: 80, monster: "Hextech Dragon" },
-  { type: "kill", team: "red", time: "12:30", x: 30, y: 25, killer: "Yone", victim: "Jax" },
-  { type: "tower", team: "blue", time: "14:10", x: 65, y: 35, lane: "Mid Outer" },
-  { type: "baron", team: "blue", time: "22:45", x: 30, y: 20, monster: "Baron Nashor" },
-]
-
-// Mock Statistics Data
-const mockStatsData: MatchStatisticsData = {
-  players: {
-    blue: [
-      { name: "ThunderStrike", role: "Top", champion: "Jax", at10: { goldDiff: 450, csDiff: 12, xpDiff: 200 }, at15: { goldDiff: 1200, csDiff: 25, xpDiff: 450 }, dpg: 1.45, cspm: 8.5, vspm: 0.8, goldShare: 22, damageShare: 18 },
-      { name: "ShadowJungle", role: "Jungle", champion: "LeeSin", at10: { goldDiff: -200, csDiff: -5, xpDiff: -100 }, at15: { goldDiff: 300, csDiff: 8, xpDiff: 150 }, dpg: 1.10, cspm: 6.2, vspm: 1.6, goldShare: 18, damageShare: 12 },
-      { name: "ArcaneWizard", role: "Mid", champion: "Orianna", at10: { goldDiff: 150, csDiff: 8, xpDiff: 50 }, at15: { goldDiff: 800, csDiff: 15, xpDiff: 300 }, dpg: 1.75, cspm: 9.2, vspm: 1.1, goldShare: 24, damageShare: 28 },
-      { name: "PhantomADC", role: "ADC", champion: "Ezreal", at10: { goldDiff: 600, csDiff: 18, xpDiff: 300 }, at15: { goldDiff: 1500, csDiff: 32, xpDiff: 600 }, dpg: 2.10, cspm: 10.5, vspm: 0.6, goldShare: 26, damageShare: 35 },
-      { name: "GuardianSupp", role: "Support", champion: "Leona", at10: { goldDiff: 100, csDiff: 2, xpDiff: 80 }, at15: { goldDiff: 400, csDiff: 5, xpDiff: 120 }, dpg: 0.80, cspm: 1.5, vspm: 2.8, goldShare: 10, damageShare: 7 },
-    ],
-    red: [
-      { name: "RED Player 1", role: "Top", champion: "Aatrox", at10: { goldDiff: -450, csDiff: -12, xpDiff: -200 }, at15: { goldDiff: -1200, csDiff: -25, xpDiff: -450 }, dpg: 1.35, cspm: 7.8, vspm: 0.7, goldShare: 21, damageShare: 22 },
-      { name: "RED Player 2", role: "Jungle", champion: "Sejuani", at10: { goldDiff: 200, csDiff: 5, xpDiff: 100 }, at15: { goldDiff: -300, csDiff: -8, xpDiff: -150 }, dpg: 0.95, cspm: 5.8, vspm: 1.4, goldShare: 19, damageShare: 10 },
-      { name: "RED Player 3", role: "Mid", champion: "Azir", at10: { goldDiff: -150, csDiff: -8, xpDiff: -50 }, at15: { goldDiff: -800, csDiff: -15, xpDiff: -300 }, dpg: 1.60, cspm: 8.8, vspm: 1.0, goldShare: 23, damageShare: 25 },
-      { name: "RED Player 4", role: "ADC", champion: "Varus", at10: { goldDiff: -600, csDiff: -18, xpDiff: -300 }, at15: { goldDiff: -1500, csDiff: -32, xpDiff: -600 }, dpg: 1.85, cspm: 9.5, vspm: 0.5, goldShare: 25, damageShare: 32 },
-      { name: "RED Player 5", role: "Support", champion: "Bard", at10: { goldDiff: -100, csDiff: -2, xpDiff: -80 }, at15: { goldDiff: -400, csDiff: -5, xpDiff: -120 }, dpg: 0.75, cspm: 1.2, vspm: 2.5, goldShare: 12, damageShare: 11 },
-    ]
-  },
-  correlations: {
-    goldVsDamage: [
-      { name: "ThunderStrike", goldShare: 22, damageShare: 18, role: 'Top' },
-      { name: "ShadowJungle", goldShare: 18, damageShare: 12, role: 'Jungle' },
-      { name: "ArcaneWizard", goldShare: 24, damageShare: 28, role: 'Mid' },
-      { name: "PhantomADC", goldShare: 26, damageShare: 35, role: 'ADC' },
-      { name: "GuardianSupp", goldShare: 10, damageShare: 7, role: 'Support' },
-      { name: "RED Player 1", goldShare: 21, damageShare: 22, role: 'Top' },
-      { name: "RED Player 2", goldShare: 19, damageShare: 10, role: 'Jungle' },
-      { name: "RED Player 3", goldShare: 23, damageShare: 25, role: 'Mid' },
-      { name: "RED Player 4", goldShare: 25, damageShare: 32, role: 'ADC' },
-      { name: "RED Player 5", goldShare: 12, damageShare: 11, role: 'Support' },
-    ]
-  },
-  timeline: [
-    { minute: 0, goldDiff: 0, xpDiff: 0, winProb: 0.5, events: [] },
-    { minute: 5, goldDiff: 200, xpDiff: -100, winProb: 0.52, events: [{ minute: 3.5, type: 'kill', team: 'blue', description: 'ThunderStrike (Jax) killed RED Player 1' }] },
-    { minute: 10, goldDiff: -400, xpDiff: -500, winProb: 0.45, events: [{ minute: 8.2, type: 'dragon', team: 'red', description: 'Chemtech Dragon' }] },
-    { minute: 15, goldDiff: 1200, xpDiff: 800, winProb: 0.58, events: [{ minute: 12.5, type: 'tower', team: 'blue', description: 'Mid Outer Tower' }, { minute: 14.2, type: 'kill', team: 'blue', description: 'Double Kill ShadowJungle' }] },
-    { minute: 20, goldDiff: 2800, xpDiff: 3200, winProb: 0.72, events: [{ minute: 18.5, type: 'baron', team: 'blue', description: 'Baron Nashor' }] },
-    { minute: 25, goldDiff: 5500, xpDiff: 5200, winProb: 0.88, events: [{ minute: 23.1, type: 'tower', team: 'blue', description: 'Bot Inner & Inhibitor' }] },
-    { minute: 28, goldDiff: 8200, xpDiff: 7800, winProb: 0.98, events: [{ minute: 28.2, type: 'kill', team: 'blue', description: 'ACE - Final Push' }] },
-  ],
   efficiency: {
-    conversionRatio: { blue: 0.85, red: 0.42 }, // Objectives per 1k gold
-    resourceVelocity: [
-      { minute: 0, blue: 0, red: 0 },
-      { minute: 10, blue: 450, red: 420 },
-      { minute: 20, blue: 850, red: 600 },
-      { minute: 28, blue: 1200, red: 750 },
-    ]
-  }
+    conversionRatio: { blue: number; red: number }; 
+    resourceVelocity: Array<{ minute: number; blue: number; red: number }>;
+  };
 }
 
-export function MatchAnalyticalTabs() {
+export function MatchAnalyticalTabs({ stats }: { stats: MatchStatisticsData | null }) {
   const [activeAnalysis, setActiveAnalysis] = useState("stats")
+
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl opacity-50 bg-muted/5">
+        <BarChart2 className="h-10 w-10 mb-2 text-muted-foreground" />
+        <p className="font-bold">Análise Avançada Indisponível</p>
+        <p className="text-xs text-muted-foreground">Sincronize a partida para visualizar os dados detalhados.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -185,27 +81,26 @@ export function MatchAnalyticalTabs() {
           <TrendingUp className="h-3 w-3 mr-2" />
           Momentum & Recursos
         </Badge>
-        <Badge 
+        {/* Heatmap disabled for now as we need event data */}
+        {/* <Badge 
           className={`cursor-pointer px-4 py-2 transition-all ${activeAnalysis === "heatmap" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-muted hover:bg-muted/80 text-muted-foreground"}`}
           onClick={() => setActiveAnalysis("heatmap")}
         >
           <Activity className="h-3 w-3 mr-2" />
           Mapa de Calor
-        </Badge>
+        </Badge> */}
       </div>
 
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {activeAnalysis === "stats" && <StatisticsView />}
-        {activeAnalysis === "momentum" && <MomentumView />}
-        {activeAnalysis === "heatmap" && <HeatmapView />}
+        {activeAnalysis === "stats" && <StatisticsView stats={stats} />}
+        {activeAnalysis === "momentum" && <MomentumView stats={stats} />}
+        {/* {activeAnalysis === "heatmap" && <HeatmapView />} */}
       </div>
     </div>
   )
 }
 
-function MomentumView() {
-  const stats = mockStatsData
-
+function MomentumView({ stats }: { stats: MatchStatisticsData }) {
   // Identify momentum swings (gold diff changes > 2000 between snapshots)
   const swings = stats.timeline.slice(1).map((curr, i) => {
     const prev = stats.timeline[i]
@@ -426,9 +321,8 @@ function MomentumView() {
   )
 }
 
-function StatisticsView() {
+function StatisticsView({ stats }: { stats: MatchStatisticsData }) {
   const [laneTime, setLaneTime] = useState<"10" | "15">("10")
-  const stats = mockStatsData
 
   return (
     <div className="grid gap-6">

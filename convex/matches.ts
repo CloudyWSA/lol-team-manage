@@ -72,6 +72,10 @@ export const addDetailedGame = mutation({
       cs: v.optional(v.number()),
       dpm: v.optional(v.number()),
       visionScore: v.optional(v.number()),
+      snapshots: v.optional(v.object({
+        at10: v.object({ gold: v.number(), cs: v.number(), xp: v.number() }),
+        at15: v.object({ gold: v.number(), cs: v.number(), xp: v.number() }),
+      })),
     })),
     blueStats: v.optional(v.object({
       gold: v.number(),

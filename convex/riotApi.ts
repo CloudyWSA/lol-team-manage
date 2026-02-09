@@ -190,11 +190,35 @@ export const syncOfficialGame = action({
     const { cluster } = getRegionInfo(args.region);
 
     try {
-      const { mData } = await getMatchDetails(args.riotMatchId, cluster);
+      const { mData, tData } = await getMatchDetails(args.riotMatchId, cluster);
       const participants = mData.info.participants;
       const gameDurationMinutes = mData.info.gameDuration / 60;
+      const frames = tData?.info?.frames || [];
 
-      const parsedParticipants = participants.map((p: any) => parseParticipant(p, gameDurationMinutes));
+      const parsedParticipants = participants.map((p: any) => {
+        const base = parseParticipant(p, gameDurationMinutes);
+        
+        // Calculate snapshots
+        const snapshots: any = {};
+        if (frames.length > 0) {
+           const participantId = p.participantId;
+           [10, 15].forEach(min => {
+             const frame = frames[min];
+             if (frame) {
+               const pFrame = frame.participantFrames[participantId];
+               if (pFrame) {
+                 snapshots[`at${min}`] = {
+                   gold: pFrame.totalGold,
+                   cs: pFrame.minionsKilled + pFrame.jungleMinionsKilled,
+                   xp: pFrame.xp,
+                 };
+               }
+             }
+           });
+        }
+        
+        return { ...base, snapshots: Object.keys(snapshots).length > 0 ? snapshots : undefined };
+      });
 
       const getTeamStats = (teamId: number) => {
         const teamParts = participants.filter((p: any) => p.teamId === teamId);
