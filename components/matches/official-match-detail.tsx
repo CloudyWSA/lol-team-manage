@@ -65,7 +65,7 @@ export function OfficialMatchDetail({ matchId, gameId, gameVersion }: { matchId:
   const [isSyncing, setIsSyncing] = useState(false)
 
   // Convex Query
-  const match = useQuery(api.matches.getMatchWithGames, { matchId: matchId as Id<"officialMatches"> })
+  const match = useQuery(api.matches.getMatchWithGames, matchId ? { matchId: matchId as Id<"officialMatches"> } : "skip")
   const user = useAuth().user
   const team = useQuery(api.teams.getTeam, match?.teamId ? { teamId: match.teamId } : "skip")
 
@@ -75,8 +75,9 @@ export function OfficialMatchDetail({ matchId, gameId, gameVersion }: { matchId:
     if (!match || !matchIdInput) return
     setIsSyncing(true)
     try {
+      if (!match) return
       await syncOfficialGame({
-        matchId: match._id,
+        matchId: match._id as Id<"officialMatches">,
         riotMatchId: matchIdInput,
         gameNumber: parseInt(gameNumberInput),
         region: syncRegion,

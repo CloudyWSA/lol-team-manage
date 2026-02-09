@@ -155,7 +155,8 @@ export default defineSchema({
     riotMatchId: v.optional(v.string()),
     gameNumber: v.number(),
     duration: v.string(),
-    result: v.union(v.literal("W"), v.literal("L")),
+    // New fields (make optional or compatible)
+    result: v.optional(v.union(v.literal("W"), v.literal("L"))),
     side: v.union(v.literal("Blue"), v.literal("Red")),
     participants: v.optional(v.array(v.object({
       puuid: v.string(),
@@ -190,6 +191,14 @@ export default defineSchema({
       barons: v.number(),
       grubs: v.number(),
     })),
+    // Old fields (keep as optional to prevent validation error)
+    kills: v.optional(v.number()),
+    deaths: v.optional(v.number()),
+    assists: v.optional(v.number()),
+    mvp: v.optional(v.string()),
+    goldDiff: v.optional(v.string()),
+    win: v.optional(v.boolean()),
+    
     objectives: v.optional(v.object({
       firstBlood: v.boolean(),
       firstTower: v.boolean(),
