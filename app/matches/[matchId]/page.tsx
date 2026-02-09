@@ -1,17 +1,21 @@
-"use client"
+
 
 import React from "react"
 import { OfficialMatchDetail } from "@/components/matches/official-match-detail"
 import { AppShell } from "@/components/layout/app-shell"
 
-export default function MatchDetailPage({ params }: { params: { matchId: string } }) {
-  // Pass default gameVersion and empty gameId (component handles defaults)
+import { getLatestVersion } from "@/lib/riot-assets"
+
+export default async function MatchDetailPage({ params }: { params: Promise<{ matchId: string }> }) {
+  const { matchId } = await params
+  const version = await getLatestVersion()
+
   return (
     <AppShell title="Detalhes da Partida" subtitle="Análise detalhada e estatísticas">
       <OfficialMatchDetail 
-        matchId={params.matchId} 
+        matchId={matchId} 
         gameId="" 
-        gameVersion="14.3.1" 
+        gameVersion={version} 
       />
     </AppShell>
   )
